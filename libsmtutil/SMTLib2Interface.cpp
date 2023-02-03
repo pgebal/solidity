@@ -310,6 +310,7 @@ vector<string> SMTLib2Interface::parseValues(string::const_iterator _start, stri
 
 string SMTLib2Interface::querySolver(string const& _input)
 {
+	cout << _input << endl;
 	h256 inputHash = keccak256(_input);
 	if (m_queryResponses.count(inputHash))
 		return m_queryResponses.at(inputHash);
