@@ -75,6 +75,16 @@ map<Predicate const*, set<string>> collectInvariants(
 		auto const& [predExpr, invExpr] = equalities.at(predName);
 
 		static set<string> const ignore{"true", "false"};
+
+		/*cout << "pred:" << endl;
+		cout << toSolidityStr(predExpr) << endl;
+		cout << "invariant:" << endl;
+		cout << toSolidityStr(invExpr) << endl;
+		cout << "substitutions" << endl;
+        for (const auto& elem : pred->expressionSubstitution(predExpr))
+		{
+			cout << elem.first << " " << elem.second << endl;
+		}*/
 		auto r = substitute(invExpr, pred->expressionSubstitution(predExpr));
 		// No point in reporting true/false as invariants.
 		if (!ignore.count(r.name))

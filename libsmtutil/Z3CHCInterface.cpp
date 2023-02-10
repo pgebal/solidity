@@ -19,6 +19,7 @@
 #include <libsmtutil/Z3CHCInterface.h>
 
 #include <libsolutil/CommonIO.h>
+#include <libsolutil/Algorithms.h>
 
 #include <set>
 #include <stack>
@@ -82,7 +83,7 @@ tuple<CheckResult, Expression, CHCSolverInterface::CexGraph> Z3CHCInterface::que
 	CheckResult result;
 	try
 	{
-		z3::expr z3Expr = m_z3Interface->toZ3Expr(_expr);
+		z3::expr z3Expr = m_z3Interface->toZ3Expr(_expr).simplify();
 		switch (m_solver.query(z3Expr))
 		{
 		case z3::check_result::sat:
@@ -100,7 +101,16 @@ tuple<CheckResult, Expression, CHCSolverInterface::CexGraph> Z3CHCInterface::que
 		case z3::check_result::unsat:
 		{
 			result = CheckResult::UNSATISFIABLE;
-			auto invariants = m_z3Interface->fromZ3Expr(m_solver.get_answer());
+			auto answer = m_solver.get_answer();
+			z3::goal g(*m_context);
+			g.add(answer);
+			z3::tactic qe(*m_context, "qe");
+			z3::tactic cnf(*m_context, "tseitin-cnf");
+			z3::tactic t = cnf;
+			cout << t(g).size() << endl;
+			cout << t(g) << endl;
+
+			auto invariants = m_z3Interface->fromZ3Expr(t(g)[0].as_expr());
 			return {result, std::move(invariants), {}};
 		}
 		case z3::check_result::unknown:

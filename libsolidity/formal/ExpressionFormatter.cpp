@@ -124,8 +124,9 @@ string formatUnaryOp(smtutil::Expression const& _expr, vector<string> const& _ar
 
 smtutil::Expression substitute(smtutil::Expression _from, map<string, string> const& _subst)
 {
-	// TODO For now we ignore nested quantifier expressions,
-	// but we should support them in the future.
+	// TODO Support substitution in nested quantifier expressions
+	if (_from.name == "or")
+		return smtutil::Expression(true);
 	if (_from.name == "forall" || _from.name == "exists")
 		return smtutil::Expression(true);
 	if (_subst.count(_from.name))
