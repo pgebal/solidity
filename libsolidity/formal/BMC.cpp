@@ -18,13 +18,14 @@
 
 #include <libsolidity/formal/BMC.h>
 
-#include <libsolidity/formal/ModelChecker.h>
 #include <libsolidity/formal/SymbolicTypes.h>
 
 #include <libsmtutil/SMTPortfolio.h>
 
 #include <liblangutil/CharStream.h>
 #include <liblangutil/CharStreamProvider.h>
+
+#include <utility>
 
 #ifdef HAVE_Z3_DLOPEN
 #include <z3_version.h>
@@ -245,7 +246,7 @@ bool BMC::visit(IfStatement const& _node)
 
 	// We ignore called functions here because they have
 	// specific input values.
-	if (isRootFunction())
+	if (isRootFunction() && (!isInsideLoop()))
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(_node.condition()),
@@ -280,7 +281,7 @@ bool BMC::visit(Conditional const& _op)
 	m_context.pushSolver();
 	_op.condition().accept(*this);
 
-	if (isRootFunction())
+	if (isRootFunction() && (!isInsideLoop()))
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(_op.condition()),
@@ -294,104 +295,214 @@ bool BMC::visit(Conditional const& _op)
 	return false;
 }
 
-// Here we consider the execution of two branches:
-// Branch 1 assumes the loop condition to be true and executes the loop once,
-// after resetting touched variables.
-// Branch 2 assumes the loop condition to be false and skips the loop after
-// visiting the condition (it might contain side-effects, they need to be considered)
-// and does not erase knowledge.
-// If the loop is a do-while, condition side-effects are lost since the body,
-// executed once before the condition, might reassign variables.
-// Variables touched by the loop are merged with Branch 2.
+// Unrolls while or do-while loop
 bool BMC::visit(WhileStatement const& _node)
 {
-	auto indicesBeforeLoop = copyVariableIndices();
+	auto indicesBefore = copyVariableIndices();
+
+	m_context.pushSolver();
+	// variables touched by loop might change their value
+	// assume their values are not constant
 	m_context.resetVariables(touchedVariables(_node));
-	decltype(indicesBeforeLoop) indicesAfterLoop;
+
+	_node.condition().accept(*this);
+
+	// do not apply condition target on expressions
+	// that value might be changed by other loops
+	if (isRootFunction() && (!isInsideLoop()))
+		addVerificationTarget(
+			VerificationTargetType::ConstantCondition,
+			expr(_node.condition()),
+			&_node.condition()
+		);
+	m_context.popSolver();
+
+	resetVariableIndices(indicesBefore);
+
+	unsigned int start = 0;
+	smtutil::Expression broke(false);
 	if (_node.isDoWhile())
 	{
-		indicesAfterLoop = visitBranch(&_node.body()).first;
-		// TODO the assertions generated in the body should still be active in the condition
-		_node.condition().accept(*this);
-		if (isRootFunction())
-			addVerificationTarget(
-				VerificationTargetType::ConstantCondition,
-				expr(_node.condition()),
-				&_node.condition()
-			);
+		loopScopes.emplace();
+
+		auto indicesAfter = visitBranch(&_node.body()).first;
+
+		smtutil::Expression continues(false);
+		for (auto const& loopControl: loopScopes.top())
+		{
+			if (loopControl.kind == LoopControlKind::Break)
+			{
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				broke = broke || loopControl.pathConditions;
+			}
+			else if (loopControl.kind == LoopControlKind::Continue)
+			{
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				continues = continues || loopControl.pathConditions;
+			}
+		}
+
+		// not checking loop condition to merge variables
+		// if there are no paths to breaks or continue statements, do-while loop body is fully executed at least once
+		mergeVariables(!broke && !continues, indicesAfter, copyVariableIndices());
+
+		loopScopes.pop();
+		start = 1;
 	}
-	else
+
+	_node.condition().accept(*this);
+
+	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
+	for (unsigned int i = start; i < bmcLoopIterations; ++i)
 	{
-		_node.condition().accept(*this);
-		if (isRootFunction())
-			addVerificationTarget(
-				VerificationTargetType::ConstantCondition,
-				expr(_node.condition()),
-				&_node.condition()
-			);
+		loopScopes.emplace();
 
-		indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;
+		auto indicesAfter = visitBranch(&_node.body(), expr(_node.condition())).first;
+
+		smtutil::Expression continues(false);
+		for (auto const& loopControl: loopScopes.top())
+		{
+			if (loopControl.kind == LoopControlKind::Break)
+			{
+				// use SSAs associated with this break statement only if
+				// loop didn't break or continue before
+				// loop condition is included in 'break' path conditions
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				broke = broke || loopControl.pathConditions;
+			}
+			else if (loopControl.kind == LoopControlKind::Continue)
+			{
+				// use SSAs associated with this continue statement only if
+				// loop didn't break or continue before
+				// loop condition is included in continue path conditions
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				continues = continues || loopControl.pathConditions;
+			}
+		}
+
+		mergeVariables(
+			!broke && !continues && expr(_node.condition()),
+			indicesAfter,
+			copyVariableIndices()
+		);
+		loopScopes.pop();
+		_node.condition().accept(*this);
 	}
-
-	// We reset the execution to before the loop
-	// and visit the condition in case it's not a do-while.
-	// A do-while's body might have non-precise information
-	// in its first run about variables that are touched.
-	resetVariableIndices(indicesBeforeLoop);
-	if (!_node.isDoWhile())
-		_node.condition().accept(*this);
-
-	mergeVariables(expr(_node.condition()), indicesAfterLoop, copyVariableIndices());
 
 	m_loopExecutionHappened = true;
 	return false;
 }
 
-// Here we consider the execution of two branches similar to WhileStatement.
+// Unrolls for loop
 bool BMC::visit(ForStatement const& _node)
 {
 	if (_node.initializationExpression())
 		_node.initializationExpression()->accept(*this);
+	auto indicesBefore = copyVariableIndices();
 
-	auto indicesBeforeLoop = copyVariableIndices();
-
-	// Do not reset the init expression part.
 	auto touchedVars = touchedVariables(_node.body());
 	if (_node.condition())
 		touchedVars += touchedVariables(*_node.condition());
 	if (_node.loopExpression())
 		touchedVars += touchedVariables(*_node.loopExpression());
 
+	m_context.pushSolver();
+	// variables touched by loop might change their value
+	// assume values are not constant
 	m_context.resetVariables(touchedVars);
-
 	if (_node.condition())
 	{
 		_node.condition()->accept(*this);
-		if (isRootFunction())
+		// do not apply condition target on expressions
+		// which value might be changed by other loops
+		if (isRootFunction() && (!isInsideLoop()))
 			addVerificationTarget(
 				VerificationTargetType::ConstantCondition,
 				expr(*_node.condition()),
 				_node.condition()
 			);
 	}
-
-	m_context.pushSolver();
-	if (_node.condition())
-		m_context.addAssertion(expr(*_node.condition()));
-	_node.body().accept(*this);
-	if (_node.loopExpression())
-		_node.loopExpression()->accept(*this);
 	m_context.popSolver();
+	resetVariableIndices(indicesBefore);
 
-	auto indicesAfterLoop = copyVariableIndices();
-	// We reset the execution to before the loop
-	// and visit the condition.
-	resetVariableIndices(indicesBeforeLoop);
-	if (_node.condition())
-		_node.condition()->accept(*this);
+	smtutil::Expression broke(false);
+	smtutil::Expression forCondition(true);
+	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
+	for (unsigned int i = 0; i < bmcLoopIterations; ++i)
+	{
+		if (_node.condition())
+		{
+			_node.condition()->accept(*this);
+			// values in loop condition might change during loop iteration
+			forCondition = expr(*_node.condition());
+		}
+		loopScopes.emplace();
 
-	auto forCondition = _node.condition() ? expr(*_node.condition()) : smtutil::Expression(true);
-	mergeVariables(forCondition, indicesAfterLoop, copyVariableIndices());
+		auto indicesBefore = copyVariableIndices();
+		pushPathCondition(forCondition);
+		_node.body().accept(*this);
+		popPathCondition();
+
+		smtutil::Expression continues(false);
+		smtutil::Expression brokeInCurrentIteration(false);
+		for (auto const& loopControl: loopScopes.top())
+		{
+			if (loopControl.kind == LoopControlKind::Break)
+			{
+				// use SSAs associated with this break statement only if
+				// loop didn't break or continue earlier in the iteration
+				// loop condition is included in break path conditions
+				mergeVariables(
+					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				brokeInCurrentIteration =
+					brokeInCurrentIteration || loopControl.pathConditions;
+			}
+			else if (loopControl.kind == LoopControlKind::Continue)
+			{
+				// use SSAs associated with this continue statement only if
+				// loop didn't break or continue earlier in the iteration
+				// loop condition is included in continue path conditions
+				mergeVariables(
+					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				continues = continues || loopControl.pathConditions;
+			}
+		}
+
+		if (_node.loopExpression())
+			_node.loopExpression()->accept(*this);
+
+		// handles breaks in previous iterations
+		// breaks in current iterations are handled in the code above
+		mergeVariables(
+			broke || !forCondition,
+			indicesBefore,
+			copyVariableIndices()
+		);
+		loopScopes.pop();
+		broke = broke || brokeInCurrentIteration;
+	}
 
 	m_loopExecutionHappened = true;
 	return false;
@@ -424,6 +535,28 @@ bool BMC::visit(TryStatement const& _tryStatement)
 		pathCondition = pathCondition || clausesVisitResults[i].second;
 	}
 	setPathCondition(pathCondition);
+
+	return false;
+}
+
+bool BMC::visit(Break const& breakStatement)
+{
+	(void)breakStatement;
+
+	LoopControl
+		control(LoopControlKind::Break, currentPathConditions(), copyVariableIndices());
+	loopScopes.top().emplace_back(control);
+
+	return false;
+}
+
+bool BMC::visit(Continue const& continueStatement)
+{
+	(void)continueStatement;
+
+	LoopControl
+		control(LoopControlKind::Continue, currentPathConditions(), copyVariableIndices());
+	loopScopes.top().emplace_back(control);
 
 	return false;
 }
@@ -535,7 +668,7 @@ void BMC::visitRequire(FunctionCall const& _funCall)
 	auto const& args = _funCall.arguments();
 	solAssert(args.size() >= 1, "");
 	solAssert(args.front()->annotation().type->category() == Type::Category::Bool, "");
-	if (isRootFunction())
+	if (isRootFunction() && (!isInsideLoop()))
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(*args.front()),
@@ -960,7 +1093,7 @@ void BMC::checkCondition(
 	vector<smtutil::Expression> expressionsToEvaluate;
 	vector<string> expressionNames;
 	tie(expressionsToEvaluate, expressionNames) = _modelExpressions;
-	if (_callStack.size())
+	if (!_callStack.empty())
 		if (_additionalValue)
 		{
 			expressionsToEvaluate.emplace_back(*_additionalValue);
@@ -1144,4 +1277,15 @@ void BMC::assignment(smt::SymbolicVariable& _symVar, smtutil::Expression const& 
 		newVar == oldVar
 	));
 }
+
+bool BMC::isInsideLoop() const
+{
+	return !loopScopes.empty();
+}
+
+BMC::LoopControl::LoopControl(
+	LoopControlKind _kind,
+	smtutil::Expression _pathConditions,
+	VariableIndices _variableIndicies)
+	: kind(_kind), pathConditions(std::move(_pathConditions)), variableIndicies(std::move(_variableIndicies)) {}
 
