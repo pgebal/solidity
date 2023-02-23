@@ -153,6 +153,7 @@ BOOST_AUTO_TEST_CASE(cli_mode_options)
 			"--model-checker-solvers=z3,smtlib2",
 			"--model-checker-targets=underflow,divByZero",
 			"--model-checker-timeout=5",
+			"--model-checker-bmcLoopIterations=2"
 		};
 
 		if (inputMode == InputMode::CompilerWithASTImport)
@@ -222,6 +223,7 @@ BOOST_AUTO_TEST_CASE(cli_mode_options)
 			{false, false, true, true},
 			{{VerificationTargetType::Underflow, VerificationTargetType::DivByZero}},
 			5,
+			2,
 		};
 
 		CommandLineOptions parsedOptions = parseCommandLine(commandLine);

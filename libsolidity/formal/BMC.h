@@ -100,6 +100,8 @@ private:
 	void endVisit(FunctionCall const& _node) override;
 	void endVisit(Return const& _node) override;
 	bool visit(TryStatement const& _node) override;
+	bool visit(Break const& _node) override;
+	bool visit(Continue const& _node) override;
 	//@}
 
 	/// Visitor helpers.
@@ -188,6 +190,8 @@ private:
 	smtutil::CheckResult checkSatisfiable();
 	//@}
 
+	bool isInsideLoop() const;
+
 	std::unique_ptr<smtutil::SolverInterface> m_interface;
 
 	/// Flags used for better warning messages.
@@ -204,6 +208,28 @@ private:
 
 	/// Number of verification conditions that could not be proved.
 	size_t m_unprovedAmt = 0;
-};
 
+	// stores current path conditions and SSA indices for every break and continue statement in a loop
+	enum class LoopControlKind
+	{
+		Continue,
+		Break
+	};
+
+	struct LoopControl {
+		explicit LoopControl(
+			LoopControlKind _kind,
+			smtutil::Expression _pathConditions,
+			VariableIndices _variableIndicies
+		);
+
+
+		LoopControlKind kind;
+		smtutil::Expression pathConditions;
+		VariableIndices variableIndicies;
+	};
+
+	// loop control statements for every loop
+	std::stack<std::vector<LoopControl>> loopScopes;
+};
 }
