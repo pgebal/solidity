@@ -445,7 +445,7 @@ std::optional<Json::Value> checkSettingsKeys(Json::Value const& _input)
 
 std::optional<Json::Value> checkModelCheckerSettingsKeys(Json::Value const& _input)
 {
-	static set<string> keys{"contracts", "divModNoSlacks", "engine", "extCalls", "invariants", "showUnproved", "solvers", "targets", "timeout"};
+	static set<string> keys{"contracts", "divModNoSlacks", "engine", "extCalls", "invariants", "bmcLoopUnwindDepth", "showUnproved", "solvers", "targets", "timeout"};
 	return checkKeys(_input, keys, "modelChecker");
 }
 
@@ -1098,6 +1098,17 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 	{
 		if (!modelCheckerSettings["timeout"].isUInt())
 			return formatFatalError(Error::Type::JSONError, "settings.modelChecker.timeout must be an unsigned integer.");
+		ret.modelCheckerSettings.timeout = modelCheckerSettings["timeout"].asUInt();
+	}
+
+	if (modelCheckerSettings.isMember("bmcLoopUnwindDepth"))
+	{
+		// TODO: use max loop bound constant
+		if (!ret.modelCheckerSettings.engine.bmc)
+			return formatFatalError(Error::Type::JSONError, "settings.modelChecker.bmcLoopUnwindDepth must be used only with bmc engine.");
+		bool isUintInLimits = modelCheckerSettings["bmcLoopUnwindDepth"].isUInt() && (modelCheckerSettings["bmcLoopUnwindDepth"].asUInt() < 100);
+		if (isUintInLimits)
+			return formatFatalError(Error::Type::JSONError, "settings.modelChecker.bmcLoopUnwindDepth must be an unsigned integer less than 100.");
 		ret.modelCheckerSettings.timeout = modelCheckerSettings["timeout"].asUInt();
 	}
 

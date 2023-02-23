@@ -172,6 +172,7 @@ struct ModelCheckerSettings
 	smtutil::SMTSolverChoice solvers = smtutil::SMTSolverChoice::Z3();
 	ModelCheckerTargets targets = ModelCheckerTargets::Default();
 	std::optional<unsigned> timeout;
+	std::optional<unsigned> bmcLoopUnwindDepth;
 
 	bool operator!=(ModelCheckerSettings const& _other) const noexcept { return !(*this == _other); }
 	bool operator==(ModelCheckerSettings const& _other) const noexcept
@@ -185,7 +186,8 @@ struct ModelCheckerSettings
 			showUnproved == _other.showUnproved &&
 			solvers == _other.solvers &&
 			targets == _other.targets &&
-			timeout == _other.timeout;
+			timeout == _other.timeout &&
+			bmcLoopUnwindDepth == _other.bmcLoopUnwindDepth;
 	}
 };
 

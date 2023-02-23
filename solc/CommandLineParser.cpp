@@ -75,6 +75,7 @@ static string const g_strModelCheckerShowUnproved = "model-checker-show-unproved
 static string const g_strModelCheckerSolvers = "model-checker-solvers";
 static string const g_strModelCheckerTargets = "model-checker-targets";
 static string const g_strModelCheckerTimeout = "model-checker-timeout";
+static string const g_strModelCheckerBMCLoopUnwindDepth = "model-checker-bmc-loop-bound";
 static string const g_strNone = "none";
 static string const g_strNoOptimizeYul = "no-optimize-yul";
 static string const g_strOptimize = "optimize";
@@ -857,16 +858,21 @@ General Information)").c_str(),
 		(
 			g_strModelCheckerTargets.c_str(),
 			po::value<string>()->value_name("default,all,constantCondition,underflow,overflow,divByZero,balance,assert,popEmptyArray,outOfBounds")->default_value("default"),
-			"Select model checker verification targets. "
+			"Select model checker verification targets."
 			"Multiple targets can be selected at the same time, separated by a comma and no spaces."
 			" By default all targets except underflow and overflow are selected."
 		)
 		(
 			g_strModelCheckerTimeout.c_str(),
 			po::value<unsigned>()->value_name("ms"),
-			"Set model checker timeout per query in milliseconds. "
-			"The default is a deterministic resource limit. "
+			"Set model checker timeout per query in milliseconds."
+			"The default is a deterministic resource limit."
 			"A timeout of 0 means no resource/time restrictions for any query."
+		)
+		(
+			g_strModelCheckerBMCLoopUnwindDepth.c_str(),
+			"Set loop unwinding depth for BMC engine."
+			"Default is 1."
 		)
 	;
 	desc.add(smtCheckerOptions);
@@ -959,6 +965,7 @@ void CommandLineParser::processArgs()
 		{g_strModelCheckerInvariants, {InputMode::Compiler, InputMode::CompilerWithASTImport}},
 		{g_strModelCheckerSolvers, {InputMode::Compiler, InputMode::CompilerWithASTImport}},
 		{g_strModelCheckerTimeout, {InputMode::Compiler, InputMode::CompilerWithASTImport}},
+		{g_strModelCheckerBMCLoopUnwindDepth, {InputMode::Compiler, InputMode::CompilerWithASTImport}},
 		{g_strModelCheckerContracts, {InputMode::Compiler, InputMode::CompilerWithASTImport}},
 		{g_strModelCheckerTargets, {InputMode::Compiler, InputMode::CompilerWithASTImport}}
 	};
@@ -1337,6 +1344,13 @@ void CommandLineParser::processArgs()
 
 	if (m_args.count(g_strModelCheckerTimeout))
 		m_options.modelChecker.settings.timeout = m_args[g_strModelCheckerTimeout].as<unsigned>();
+
+	if (m_args.count(g_strModelCheckerBMCLoopUnwindDepth))
+	{
+		if (!m_options.modelChecker.settings.engine.bmc)
+			solThrow(CommandLineValidationError, "BMC loop unwind depth specified for non-BMC engine");
+		m_options.modelChecker.settings.timeout = m_args[g_strModelCheckerBMCLoopUnwindDepth].as<unsigned>();
+	}
 
 	m_options.metadata.literalSources = (m_args.count(g_strMetadataLiteral) > 0);
 	m_options.modelChecker.initialize =
