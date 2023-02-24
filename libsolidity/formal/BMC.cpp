@@ -294,6 +294,7 @@ bool BMC::visit(WhileStatement const& _node)
 				expr(_node.condition()),
 				&_node.condition()
 			);
+		if ()
 	}
 	else
 	{
