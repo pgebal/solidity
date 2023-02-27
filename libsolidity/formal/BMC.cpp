@@ -285,9 +285,8 @@ bool BMC::visit(WhileStatement const& _node)
 	decltype(indicesBeforeLoop) indicesAfterLoop;
 	if (_node.isDoWhile())
 	{
-		indicesAfterLoop = visitBranch(&_node.body()).first;
+		indicesAfterLoop = visitLoop(&_node.body(), &_node.condition()).first;
 		// TODO the assertions generated in the body should still be active in the condition
-		_node.condition().accept(*this);
 		if (isRootFunction())
 			addVerificationTarget(
 				VerificationTargetType::ConstantCondition,
@@ -305,7 +304,7 @@ bool BMC::visit(WhileStatement const& _node)
 				&_node.condition()
 			);
 
-		indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;
+		indicesAfterLoop = visitLoop(&_node.body(), &_node.condition()).first;
 	}
 
 	// We reset the execution to before the loop
