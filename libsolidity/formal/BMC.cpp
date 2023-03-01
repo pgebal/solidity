@@ -269,10 +269,9 @@ bool BMC::visit(Conditional const& _op)
 	return false;
 }
 
-// Here we consider the execution of two branches:
-// Branch 1 assumes the loop condition to be true and executes the loop once,
+// First conditional statement assumes the loop condition to be true and executes the loop ,
 // after resetting touched variables.
-// Branch 2 assumes the loop condition to be false and skips the loop after
+// Second conditional assumes the loop condition to be false and skips it after
 // visiting the condition (it might contain side-effects, they need to be considered)
 // and does not erase knowledge.
 // If the loop is a do-while, condition side-effects are lost since the body,

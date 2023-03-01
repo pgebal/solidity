@@ -2302,19 +2302,18 @@ pair<SMTEncoder::VariableIndices, smtutil::Expression> SMTEncoder::visitBranch(
 }
 
 pair<SMTEncoder::VariableIndices, smtutil::Expression> SMTEncoder::visitLoop(
-	ASTNode const* _statement,
+	ASTNode const* _body,
 	Expression const* _condition
 )
 {
 	unsigned int numberOfVisits = m_settings.bmcLoopUnwindDepth.value_or(1);
 	solAssert(numberOfVisits > 0, "");
 	auto indicesBeforeBranch = copyVariableIndices();
-	smtutil::Expression condition = expr(_condition);
+	smtutil::Expression condition = expr(*_condition);
 	for (unsigned int i = 0; i < numberOfVisits; ++i)
 	{
-		if (condition)
-			pushPathCondition(*condition);
-		_statement->accept(*this);
+		pushPathCondition(condition);
+		_body->accept(*this);
 		_condition->accept(*this);
 	}
 
@@ -2322,8 +2321,7 @@ pair<SMTEncoder::VariableIndices, smtutil::Expression> SMTEncoder::visitLoop(
 	auto indicesAfterBranches = copyVariableIndices();
 
 	for (unsigned int i = 0; i < numberOfVisits; ++i)
-		if (condition)
-			popPathCondition();
+		popPathCondition();
 
 	resetVariableIndices(indicesBeforeBranch);
 	return {indicesAfterBranches, pathConditionOnExit};
