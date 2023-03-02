@@ -13,4 +13,3 @@ contract C
 // SMTEngine: all
 // ----
 // Warning 4984: (106-111): CHC: Overflow (resulting value larger than 2**256 - 1) might happen here.
-// Warning 2661: (106-111): BMC: Overflow (resulting value larger than 2**256 - 1) happens here.

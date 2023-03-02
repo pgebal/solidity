@@ -113,7 +113,8 @@ void FuzzerUtil::testCompiler(
 			/*showUnproved=*/false,
 			smtutil::SMTSolverChoice::All(),
 			frontend::ModelCheckerTargets::Default(),
-			/*timeout=*/1
+			/*timeout=*/1,
+			/*bmcLoopIterations*/1,
 		});
 	}
 	compiler.setSources(_input);

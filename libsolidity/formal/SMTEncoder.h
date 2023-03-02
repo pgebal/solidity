@@ -310,12 +310,6 @@ protected:
 	std::pair<VariableIndices, smtutil::Expression> visitBranch(ASTNode const* _statement, smtutil::Expression const* _condition = nullptr);
 	std::pair<VariableIndices, smtutil::Expression> visitBranch(ASTNode const* _statement, smtutil::Expression _condition);
 
-	// Visits the branch given by the statement multiple times.
-	/// @param _condition asserts that this condition is true within the loop.
-	/// @returns the variable indices after visiting the loop and the expression representing
-	/// the path condition at the end of the branch.
-	std::pair<VariableIndices, smtutil::Expression> visitLoop(ASTNode const* _body, Expression const* _condition);
-
 	using CallStackEntry = std::pair<CallableDeclaration const*, ASTNode const*>;
 
 	void createStateVariables(ContractDefinition const& _contract);

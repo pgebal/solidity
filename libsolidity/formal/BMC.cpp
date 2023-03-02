@@ -279,22 +279,39 @@ bool BMC::visit(Conditional const& _op)
 // Variables touched by the loop are merged with Branch 2.
 bool BMC::visit(WhileStatement const& _node)
 {
+	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	auto indicesBeforeLoop = copyVariableIndices();
 	m_context.resetVariables(touchedVariables(_node));
-	decltype(indicesBeforeLoop) indicesAfterLoop;
+
 	if (_node.isDoWhile())
 	{
-		indicesAfterLoop = visitLoop(&_node.body(), &_node.condition()).first;
-		// TODO the assertions generated in the body should still be active in the condition
+		m_context.pushSolver();
+		visitBranch(&_node.body());
+		_node.condition().accept(*this);
 		if (isRootFunction())
 			addVerificationTarget(
 				VerificationTargetType::ConstantCondition,
 				expr(_node.condition()),
 				&_node.condition()
 			);
+		m_context.popSolver();
+
+		resetVariableIndices(indicesBeforeLoop);
+
+		for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
+		{
+			// problem ze kontekst nie jest resetowany, a czy jezeli jest resetowany to wielokrotne wejscia maja sens?
+			// warunki always true etc.
+			// do tego ponowne raportowanie bledow
+			auto indicesAfterLoop = visitBranch(&_node.body()).first;
+			// tu jest zle, bo ten condition jest wykonywany w kontekscie po branchu
+			mergeVariables(expr(_node.condition()), indicesAfterLoop, copyVariableIndices());
+			_node.condition().accept(*this);
+		}
 	}
 	else
 	{
+		m_context.pushSolver();
 		_node.condition().accept(*this);
 		if (isRootFunction())
 			addVerificationTarget(
@@ -302,19 +319,19 @@ bool BMC::visit(WhileStatement const& _node)
 				expr(_node.condition()),
 				&_node.condition()
 			);
+		m_context.popSolver();
 
-		indicesAfterLoop = visitLoop(&_node.body(), &_node.condition()).first;
+		resetVariableIndices(indicesBeforeLoop);
+
+		for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
+		{
+			auto indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;
+			// tu jest zle, bo ten condition jest wykonywany w kontekscie po branchu
+			mergeVariables(expr(_node.condition()), indicesAfterLoop, copyVariableIndices());
+
+			_node.condition().accept(*this);
+		}
 	}
-
-	// We reset the execution to before the loop
-	// and visit the condition in case it's not a do-while.
-	// A do-while's body might have non-precise information
-	// in its first run about variables that are touched.
-	resetVariableIndices(indicesBeforeLoop);
-	if (!_node.isDoWhile())
-		_node.condition().accept(*this);
-
-	mergeVariables(expr(_node.condition()), indicesAfterLoop, copyVariableIndices());
 
 	m_loopExecutionHappened = true;
 	return false;
@@ -323,12 +340,11 @@ bool BMC::visit(WhileStatement const& _node)
 // Here we consider the execution of two branches similar to WhileStatement.
 bool BMC::visit(ForStatement const& _node)
 {
+	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	if (_node.initializationExpression())
 		_node.initializationExpression()->accept(*this);
 
 	auto indicesBeforeLoop = copyVariableIndices();
-
-	// Do not reset the init expression part.
 	auto touchedVars = touchedVariables(_node.body());
 	if (_node.condition())
 		touchedVars += touchedVariables(*_node.condition());
@@ -336,7 +352,7 @@ bool BMC::visit(ForStatement const& _node)
 		touchedVars += touchedVariables(*_node.loopExpression());
 
 	m_context.resetVariables(touchedVars);
-
+	m_context.pushSolver();
 	if (_node.condition())
 	{
 		_node.condition()->accept(*this);
@@ -347,24 +363,18 @@ bool BMC::visit(ForStatement const& _node)
 				_node.condition()
 			);
 	}
-
-	m_context.pushSolver();
-	if (_node.condition())
-		m_context.addAssertion(expr(*_node.condition()));
-	_node.body().accept(*this);
-	if (_node.loopExpression())
-		_node.loopExpression()->accept(*this);
 	m_context.popSolver();
 
-	auto indicesAfterLoop = copyVariableIndices();
-	// We reset the execution to before the loop
-	// and visit the condition.
 	resetVariableIndices(indicesBeforeLoop);
-	if (_node.condition())
-		_node.condition()->accept(*this);
+	for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
+	{
+		if (_node.condition())
+			_node.condition()->accept(*this);
+		auto forCondition = _node.condition() ? expr(*_node.condition()) : smtutil::Expression(true);
+		auto indicesAfterLoop = visitBranch(&_node.body(), forCondition).first;
 
-	auto forCondition = _node.condition() ? expr(*_node.condition()) : smtutil::Expression(true);
-	mergeVariables(forCondition, indicesAfterLoop, copyVariableIndices());
+		mergeVariables(forCondition, indicesAfterLoop, copyVariableIndices());
+	}
 
 	m_loopExecutionHappened = true;
 	return false;

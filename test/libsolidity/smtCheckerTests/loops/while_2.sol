@@ -14,3 +14,4 @@ contract C {
 // SMTEngine: all
 // SMTSolvers: z3
 // ----
+// Warning 6838: (81-87): BMC: Condition is always false.

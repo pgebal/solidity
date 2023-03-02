@@ -2301,32 +2301,6 @@ pair<SMTEncoder::VariableIndices, smtutil::Expression> SMTEncoder::visitBranch(
 	return {indicesAfterBranch, pathConditionOnExit};
 }
 
-pair<SMTEncoder::VariableIndices, smtutil::Expression> SMTEncoder::visitLoop(
-	ASTNode const* _body,
-	Expression const* _condition
-)
-{
-	unsigned int numberOfVisits = m_settings.bmcLoopUnwindDepth.value_or(1);
-	solAssert(numberOfVisits > 0, "");
-	auto indicesBeforeBranch = copyVariableIndices();
-	smtutil::Expression condition = expr(*_condition);
-	for (unsigned int i = 0; i < numberOfVisits; ++i)
-	{
-		pushPathCondition(condition);
-		_body->accept(*this);
-		_condition->accept(*this);
-	}
-
-	auto pathConditionOnExit = currentPathConditions();
-	auto indicesAfterBranches = copyVariableIndices();
-
-	for (unsigned int i = 0; i < numberOfVisits; ++i)
-		popPathCondition();
-
-	resetVariableIndices(indicesBeforeBranch);
-	return {indicesAfterBranches, pathConditionOnExit};
-}
-
 void SMTEncoder::initializeFunctionCallParameters(CallableDeclaration const& _function, vector<smtutil::Expression> const& _callArgs)
 {
 	auto const& funParams = _function.parameters();
