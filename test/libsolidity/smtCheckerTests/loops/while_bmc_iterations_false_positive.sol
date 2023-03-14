@@ -16,5 +16,4 @@ contract C
 // SMTSolvers: z3
 // BMCLoopIterations: 1
 // ----
-// Warning 6838: (115-121): BMC: Condition is always false.
 // Warning 4661: (143-157): BMC: Assertion violation happens here.

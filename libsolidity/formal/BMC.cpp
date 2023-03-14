@@ -280,13 +280,13 @@ bool BMC::visit(Conditional const& _op)
 bool BMC::visit(WhileStatement const& _node)
 {
 	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
-	auto indicesBeforeLoop = copyVariableIndices();
-	m_context.resetVariables(touchedVariables(_node));
 
 	if (_node.isDoWhile())
 	{
-		m_context.pushSolver();
-		visitBranch(&_node.body());
+		// do-while body is executed at least once
+		auto indicesAfterFirstExecution= visitBranch(&_node.body()).first;
+		resetVariableIndices(indicesAfterFirstExecution);
+
 		_node.condition().accept(*this);
 		if (isRootFunction())
 			addVerificationTarget(
@@ -294,24 +294,17 @@ bool BMC::visit(WhileStatement const& _node)
 				expr(_node.condition()),
 				&_node.condition()
 			);
-		m_context.popSolver();
 
-		resetVariableIndices(indicesBeforeLoop);
-
-		for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
+		for (unsigned int i = 1;  i < bmcLoopIterations; ++i)
 		{
-			// problem ze kontekst nie jest resetowany, a czy jezeli jest resetowany to wielokrotne wejscia maja sens?
-			// warunki always true etc.
-			// do tego ponowne raportowanie bledow
+			auto indicesBeforeLoop = copyVariableIndices();
 			auto indicesAfterLoop = visitBranch(&_node.body()).first;
-			// tu jest zle, bo ten condition jest wykonywany w kontekscie po branchu
-			mergeVariables(expr(_node.condition()), indicesAfterLoop, copyVariableIndices());
+			mergeVariables(expr(_node.condition()), indicesAfterLoop, indicesBeforeLoop);
 			_node.condition().accept(*this);
 		}
 	}
 	else
 	{
-		m_context.pushSolver();
 		_node.condition().accept(*this);
 		if (isRootFunction())
 			addVerificationTarget(
@@ -319,16 +312,12 @@ bool BMC::visit(WhileStatement const& _node)
 				expr(_node.condition()),
 				&_node.condition()
 			);
-		m_context.popSolver();
-
-		resetVariableIndices(indicesBeforeLoop);
 
 		for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
 		{
+			auto indicesBeforeLoop = copyVariableIndices();
 			auto indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;
-			// tu jest zle, bo ten condition jest wykonywany w kontekscie po branchu
-			mergeVariables(expr(_node.condition()), indicesAfterLoop, copyVariableIndices());
-
+			mergeVariables(expr(_node.condition()), indicesAfterLoop, indicesBeforeLoop);
 			_node.condition().accept(*this);
 		}
 	}
