@@ -281,45 +281,34 @@ bool BMC::visit(WhileStatement const& _node)
 {
 	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 
+	m_context.pushSolver();
+	m_context.resetVariables(touchedVariables(_node));
+
+	_node.condition().accept(*this);
+	if (isRootFunction())
+		addVerificationTarget(
+			VerificationTargetType::ConstantCondition,
+			expr(_node.condition()),
+			&_node.condition()
+		);
+	m_context.popSolver();
+
+	unsigned int start = 0;
 	if (_node.isDoWhile())
 	{
 		// do-while body is executed at least once
 		auto indicesAfterFirstExecution= visitBranch(&_node.body()).first;
 		resetVariableIndices(indicesAfterFirstExecution);
-
-		_node.condition().accept(*this);
-		if (isRootFunction())
-			addVerificationTarget(
-				VerificationTargetType::ConstantCondition,
-				expr(_node.condition()),
-				&_node.condition()
-			);
-
-		for (unsigned int i = 1;  i < bmcLoopIterations; ++i)
-		{
-			auto indicesBeforeLoop = copyVariableIndices();
-			auto indicesAfterLoop = visitBranch(&_node.body()).first;
-			mergeVariables(expr(_node.condition()), indicesAfterLoop, indicesBeforeLoop);
-			_node.condition().accept(*this);
-		}
+		start = 1;
 	}
-	else
-	{
-		_node.condition().accept(*this);
-		if (isRootFunction())
-			addVerificationTarget(
-				VerificationTargetType::ConstantCondition,
-				expr(_node.condition()),
-				&_node.condition()
-			);
+	_node.condition().accept(*this);
 
-		for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
-		{
-			auto indicesBeforeLoop = copyVariableIndices();
-			auto indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;
-			mergeVariables(expr(_node.condition()), indicesAfterLoop, indicesBeforeLoop);
-			_node.condition().accept(*this);
-		}
+	for (unsigned int i = start;  i < bmcLoopIterations; ++i)
+	{
+		auto indicesBeforeLoop = copyVariableIndices();
+		auto indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;
+		mergeVariables(expr(_node.condition()), indicesAfterLoop, indicesBeforeLoop);
+		_node.condition().accept(*this);
 	}
 
 	m_loopExecutionHappened = true;

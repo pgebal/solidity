@@ -2,17 +2,15 @@ contract C
 {
 	function f(uint x) public pure {
 	    require(x == 0);
-	    uint y;
 	    x = 0;
-		while (y < 1) {
-			++y;
-			x = x + 1;
+		while (x < 2) {
+			++x;
 		}
-		assert(x == 1);
+		assert(x == 2);
 	}
 }
 // ====
 // SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 1
+// BMCLoopIterations: 3
 // ----
