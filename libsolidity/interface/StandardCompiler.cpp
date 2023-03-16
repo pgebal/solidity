@@ -1108,8 +1108,9 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 			return formatFatalError(Error::Type::JSONError, "settings.modelChecker.bmcLoopIterations must be used only with bmc engine.");
 		bool isUintInLimits = modelCheckerSettings["bmcLoopIterations"].isUInt() && (modelCheckerSettings["bmcLoopIterations"].asUInt() < 100);
 		if (isUintInLimits)
+			ret.modelCheckerSettings.bmcLoopIterations = modelCheckerSettings["bmcLoopIterations"].asUInt();
+		else
 			return formatFatalError(Error::Type::JSONError, "settings.modelChecker.bmcLoopIterations must be an unsigned integer less than 100.");
-		ret.modelCheckerSettings.timeout = modelCheckerSettings["timeout"].asUInt();
 	}
 
 	return { std::move(ret) };

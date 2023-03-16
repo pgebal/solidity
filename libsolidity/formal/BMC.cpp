@@ -303,7 +303,7 @@ bool BMC::visit(WhileStatement const& _node)
 	}
 	_node.condition().accept(*this);
 
-	for (unsigned int i = start;  i < bmcLoopIterations; ++i)
+	for (unsigned int i = start; i < bmcLoopIterations; ++i)
 	{
 		auto indicesBeforeLoop = copyVariableIndices();
 		auto indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;
