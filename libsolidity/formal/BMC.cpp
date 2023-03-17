@@ -281,6 +281,8 @@ bool BMC::visit(WhileStatement const& _node)
 {
 	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 
+	auto indicesBefore = copyVariableIndices();
+
 	m_context.pushSolver();
 	m_context.resetVariables(touchedVariables(_node));
 
@@ -292,6 +294,8 @@ bool BMC::visit(WhileStatement const& _node)
 			&_node.condition()
 		);
 	m_context.popSolver();
+
+	resetVariableIndices(indicesBefore);
 
 	unsigned int start = 0;
 	if (_node.isDoWhile())

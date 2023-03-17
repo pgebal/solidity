@@ -11,5 +11,5 @@ contract C
 // ====
 // SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 1
+// BMCLoopIterations: 3
 // ----
