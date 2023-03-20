@@ -180,6 +180,8 @@ private:
 	smtutil::CheckResult checkSatisfiable();
 	//@}
 
+	bool isInsideLoop();
+
 	std::unique_ptr<smtutil::SolverInterface> m_interface;
 
 	/// Flags used for better warning messages.
@@ -193,6 +195,9 @@ private:
 
 	/// Number of verification conditions that could not be proved.
 	size_t m_unprovedAmt = 0;
+
+	/// Number of current loop scopes
+	size_t loopDepth = 0;
 };
 
 }

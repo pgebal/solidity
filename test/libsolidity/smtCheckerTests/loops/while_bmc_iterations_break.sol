@@ -1,18 +1,16 @@
 contract C {
-	function f(uint x) public pure {
-	    require(x == 0);
+	function f() public pure {
 	    uint y;
 		while (y < 3) {
 			++y;
-			if (y == 2)
-			    x = 3;
+			break;
 		}
-		assert(x == 3);
+		assert(y == 3);
 	}
 }
 // ====
 // SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 1
+// BMCLoopIterations: 3
 // ----
 // Warning 4661: (143-157): BMC: Assertion violation happens here.

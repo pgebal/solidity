@@ -223,7 +223,7 @@ bool BMC::visit(IfStatement const& _node)
 
 	// We ignore called functions here because they have
 	// specific input values.
-	if (isRootFunction())
+	if (isRootFunction() && (!isInsideLoop()))
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(_node.condition()),
@@ -256,7 +256,7 @@ bool BMC::visit(Conditional const& _op)
 	m_context.pushSolver();
 	_op.condition().accept(*this);
 
-	if (isRootFunction())
+	if (isRootFunction() && (!isInsideLoop()))
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(_op.condition()),
@@ -287,7 +287,7 @@ bool BMC::visit(WhileStatement const& _node)
 	m_context.resetVariables(touchedVariables(_node));
 
 	_node.condition().accept(*this);
-	if (isRootFunction())
+	if (isRootFunction() && (!isInsideLoop()))
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(_node.condition()),
@@ -297,6 +297,7 @@ bool BMC::visit(WhileStatement const& _node)
 
 	resetVariableIndices(indicesBefore);
 
+	++loopDepth;
 	unsigned int start = 0;
 	if (_node.isDoWhile())
 	{
@@ -310,12 +311,13 @@ bool BMC::visit(WhileStatement const& _node)
 	for (unsigned int i = start; i < bmcLoopIterations; ++i)
 	{
 		auto indicesBeforeLoop = copyVariableIndices();
-		auto indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;
+		auto indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;;
 		mergeVariables(expr(_node.condition()), indicesAfterLoop, indicesBeforeLoop);
 		_node.condition().accept(*this);
 	}
 
 	m_loopExecutionHappened = true;
+	--loopDepth;
 	return false;
 }
 
@@ -338,7 +340,7 @@ bool BMC::visit(ForStatement const& _node)
 	if (_node.condition())
 	{
 		_node.condition()->accept(*this);
-		if (isRootFunction())
+		if (isRootFunction() && (!isInsideLoop()))
 			addVerificationTarget(
 				VerificationTargetType::ConstantCondition,
 				expr(*_node.condition()),
@@ -348,6 +350,7 @@ bool BMC::visit(ForStatement const& _node)
 	m_context.popSolver();
 
 	resetVariableIndices(indicesBeforeLoop);
+	++loopDepth;
 	for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
 	{
 		if (_node.condition())
@@ -359,6 +362,7 @@ bool BMC::visit(ForStatement const& _node)
 	}
 
 	m_loopExecutionHappened = true;
+	--loopDepth;
 	return false;
 }
 
@@ -500,7 +504,7 @@ void BMC::visitRequire(FunctionCall const& _funCall)
 	auto const& args = _funCall.arguments();
 	solAssert(args.size() >= 1, "");
 	solAssert(args.front()->annotation().type->category() == Type::Category::Bool, "");
-	if (isRootFunction())
+	if (isRootFunction() && (!isInsideLoop()))
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(*args.front()),
@@ -1083,3 +1087,7 @@ void BMC::assignment(smt::SymbolicVariable& _symVar, smtutil::Expression const& 
 	));
 }
 
+bool BMC::isInsideLoop()
+{
+	return loopDepth > 0;
+}
