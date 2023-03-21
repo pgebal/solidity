@@ -1,11 +1,11 @@
 contract C {
 	function f() public pure {
-	    uint y;
-		while (y < 3) {
-			++y;
+	    uint x;
+		while (x < 3) {
+			++x;
 			break;
 		}
-		assert(y == 3);
+		assert(x == 1);
 	}
 }
 // ====
@@ -13,4 +13,3 @@ contract C {
 // SMTSolvers: z3
 // BMCLoopIterations: 3
 // ----
-// Warning 4661: (143-157): BMC: Assertion violation happens here.
