@@ -12,8 +12,7 @@ contract C {
 	}
 }
 // ====
-// SMTEngine: all
+// SMTEngine: bmc
 // SMTSolvers: z3
 // BMCLoopIterations: 4
 // ----
-// Warning 4984: (127-130): CHC: Overflow (resulting value larger than 2**256 - 1) might happen here.

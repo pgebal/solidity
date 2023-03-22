@@ -4,13 +4,13 @@ contract C
 		require(x == 0);
 		for (uint i = 0; i < 2; ++i) {
 			for (uint j = 0; j < 2; ++j)
-				x = x + 1;
+				++x;
 		}
 		assert(x == 4);
 	}
 }
 // ====
-// SMTEngine: all
+// SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 3
+// BMCLoopIterations: 4
 // ----

@@ -1,9 +1,12 @@
 contract C {
 	function f() public pure {
 	    uint x;
-		while (x < 3) {
+	    uint i;
+		while (i < 3) {
+			++i;
+			if (i > 1)
+				continue;
 			++x;
-			break;
 		}
 		assert(x == 1);
 	}
@@ -11,5 +14,5 @@ contract C {
 // ====
 // SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 3
+// BMCLoopIterations: 4
 // ----

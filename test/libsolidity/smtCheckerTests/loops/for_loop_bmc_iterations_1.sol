@@ -1,18 +1,15 @@
 contract C
 {
-	function f(uint x) public pure {
-		require(x == 0);
-		for (uint i = 0; i < 3; ++i) {
-			if (i == 1)
-			  continue;
+	function f() public pure {
+		uint x = 0;
+		for (uint i = 0; i < 2; ++i) {
 			++x;
 		}
 		assert(x == 2);
 	}
 }
 // ====
-// SMTEngine: all
+// SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 4
+// BMCLoopIterations: 3
 // ----
-// Warning 4984: (102-105): CHC: Overflow (resulting value larger than 2**256 - 1) might happen here.

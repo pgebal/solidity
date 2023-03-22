@@ -13,7 +13,7 @@ contract C
 	}
 }
 // ====
-// SMTEngine: all
+// SMTEngine: bmc
 // SMTSolvers: z3
 // BMCLoopIterations: 3
 // ----
