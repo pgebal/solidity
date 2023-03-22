@@ -2,11 +2,11 @@ contract C {
 	function f(uint x) public pure {
 	    require(x == 0);
 	    uint y;
-		while (y < 3) {
+		do {
 			++y;
 			if (y == 2)
 			    x = 3;
-		}
+		} while (y < 3);
 		// verification reports a warning because loop unwinding depth is 1
 		assert(x == 3);
 	}
@@ -16,4 +16,4 @@ contract C {
 // SMTSolvers: z3
 // BMCLoopIterations: 1
 // ----
-// Warning 4661: (201-215): BMC: Assertion violation happens here.
+// Warning 4661: (205-219): BMC: Assertion violation happens here.

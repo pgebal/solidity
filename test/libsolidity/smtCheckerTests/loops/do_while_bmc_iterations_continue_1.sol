@@ -1,17 +1,18 @@
-contract C
-{
+contract C {
 	function f() public pure {
 		uint x = 0;
 		do {
-			if (x > 0)
-				break;
+			++x;
+			if (x == 3) {
+				continue;
+			}
 			++x;
 		} while (x < 3);
-		assert(x == 1);
+		assert(x == 3);
 	}
 }
 // ====
 // SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 3
+// BMCLoopIterations: 4
 // ----

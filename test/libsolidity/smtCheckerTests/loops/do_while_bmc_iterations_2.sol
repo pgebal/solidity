@@ -1,13 +1,15 @@
 contract C
 {
 	function f() public pure {
-		uint x = 0;
+		uint x;
 		do {
-			if (x > 0)
-				break;
 			++x;
+			{
+				++x;
+				++x;
+			}
 		} while (x < 3);
-		assert(x == 1);
+		assert(x == 3);
 	}
 }
 // ====

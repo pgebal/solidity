@@ -18,7 +18,6 @@
 
 #include <libsolidity/formal/BMC.h>
 
-#include <libsolidity/formal/ModelChecker.h>
 #include <libsolidity/formal/SymbolicTypes.h>
 
 #include <libsmtutil/SMTPortfolio.h>
@@ -297,27 +296,54 @@ bool BMC::visit(WhileStatement const& _node)
 
 	resetVariableIndices(indicesBefore);
 
-	++loopDepth;
 	unsigned int start = 0;
+	smtutil::Expression broke(false);
 	if (_node.isDoWhile())
 	{
+		LoopScope scope;
+		scope.breaks = {};
+		scope.continues = {};
+		loopScopes.push(scope);
+
 		// do-while body is executed at least once
-		auto indicesAfterFirstExecution= visitBranch(&_node.body()).first;
-		resetVariableIndices(indicesAfterFirstExecution);
+		auto indicesAfter = visitBranch(&_node.body()).first;
 		start = 1;
+
+		for (auto const& breakState: loopScopes.top().breaks)
+		{
+			mergeVariables(!broke && breakState.first, breakState.second, copyVariableIndices());
+			broke = broke || breakState.first;
+		}
+
+		mergeVariables(!broke, indicesAfter, copyVariableIndices());
+
+		loopScopes.pop();
 	}
+
 	_node.condition().accept(*this);
 
 	for (unsigned int i = start; i < bmcLoopIterations; ++i)
 	{
-		auto indicesBeforeLoop = copyVariableIndices();
-		auto indicesAfterLoop = visitBranch(&_node.body(), expr(_node.condition())).first;;
-		mergeVariables(expr(_node.condition()), indicesAfterLoop, indicesBeforeLoop);
+		LoopScope scope;
+		scope.breaks = {};
+		scope.continues = {};
+		loopScopes.push(scope);
+
+		auto indicesAfter = visitBranch(&_node.body(), expr(_node.condition())).first;
+
+		for (auto const& breakState: loopScopes.top().breaks)
+		{
+			mergeVariables(!broke && breakState.first && expr(_node.condition()), breakState.second, copyVariableIndices());
+			broke = broke || breakState.first;
+		}
+
+		mergeVariables(!broke && expr(_node.condition()), indicesAfter, copyVariableIndices());
+
+		loopScopes.pop();
 		_node.condition().accept(*this);
 	}
 
 	m_loopExecutionHappened = true;
-	--loopDepth;
 	return false;
 }
 
@@ -328,13 +354,13 @@ bool BMC::visit(ForStatement const& _node)
 	if (_node.initializationExpression())
 		_node.initializationExpression()->accept(*this);
 
-	auto indicesBeforeLoop = copyVariableIndices();
 	auto touchedVars = touchedVariables(_node.body());
 	if (_node.condition())
 		touchedVars += touchedVariables(*_node.condition());
 	if (_node.loopExpression())
 		touchedVars += touchedVariables(*_node.loopExpression());
 
+	auto indicesBefore = copyVariableIndices();
 	m_context.resetVariables(touchedVars);
 	m_context.pushSolver();
 	if (_node.condition())
@@ -346,23 +372,40 @@ bool BMC::visit(ForStatement const& _node)
 				expr(*_node.condition()),
 				_node.condition()
 			);
+
+
 	}
 	m_context.popSolver();
 
-	resetVariableIndices(indicesBeforeLoop);
-	++loopDepth;
+	resetVariableIndices(indicesBefore);
+
+	smtutil::Expression broke(false);
+	auto forCondition = _node.condition() ? expr(*_node.condition()) : smtutil::Expression(true);
+
 	for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
 	{
 		if (_node.condition())
 			_node.condition()->accept(*this);
-		auto forCondition = _node.condition() ? expr(*_node.condition()) : smtutil::Expression(true);
-		auto indicesAfterLoop = visitBranch(&_node.body(), forCondition).first;
 
-		mergeVariables(forCondition, indicesAfterLoop, copyVariableIndices());
+		LoopScope scope;
+		scope.breaks = {};
+		scope.continues = {};
+		loopScopes.push(scope);
+
+		auto indicesAfter = visitBranch(&_node.body(), forCondition).first;
+
+		for (auto const& breakState: loopScopes.top().breaks)
+		{
+			mergeVariables(!broke && breakState.first && forCondition, breakState.second, copyVariableIndices());
+			broke = broke || breakState.first;
+		}
+
+		mergeVariables(!broke && forCondition, indicesAfter, copyVariableIndices());
+
+		loopScopes.pop();
 	}
 
 	m_loopExecutionHappened = true;
-	--loopDepth;
 	return false;
 }
 
@@ -380,8 +423,8 @@ bool BMC::visit(TryStatement const& _tryStatement)
 	m_context.addAssertion(clauseId >= 0 && clauseId < clauses.size());
 	solAssert(clauses[0].get() == _tryStatement.successClause(), "First clause of TryStatement should be the success clause");
 	vector<pair<VariableIndices, smtutil::Expression>> clausesVisitResults;
-	for (size_t i = 0; i < clauses.size(); ++i)
-		clausesVisitResults.push_back(visitBranch(clauses[i].get()));
+	for (const auto & clause : clauses)
+		clausesVisitResults.push_back(visitBranch(clause.get()));
 
 	// merge the information from all clauses
 	smtutil::Expression pathCondition = clausesVisitResults.front().second;
@@ -394,6 +437,20 @@ bool BMC::visit(TryStatement const& _tryStatement)
 	}
 	setPathCondition(pathCondition);
 
+	return false;
+}
+
+bool BMC::visit(Break const& _breakStatement)
+{
+	(void)_breakStatement;
+	loopScopes.top().breaks.emplace_back(currentPathConditions(), copyVariableIndices());
+	return false;
+}
+
+bool BMC::visit(Continue const& _breakStatement)
+{
+	(void)_breakStatement;
+	loopScopes.top().continues.emplace_back(currentPathConditions(), copyVariableIndices());
 	return false;
 }
 
@@ -905,7 +962,7 @@ void BMC::checkCondition(
 	vector<smtutil::Expression> expressionsToEvaluate;
 	vector<string> expressionNames;
 	tie(expressionsToEvaluate, expressionNames) = _modelExpressions;
-	if (_callStack.size())
+	if (!_callStack.empty())
 		if (_additionalValue)
 		{
 			expressionsToEvaluate.emplace_back(*_additionalValue);
@@ -1087,7 +1144,7 @@ void BMC::assignment(smt::SymbolicVariable& _symVar, smtutil::Expression const& 
 	));
 }
 
-bool BMC::isInsideLoop()
+bool BMC::isInsideLoop() const
 {
-	return loopDepth > 0;
+	return !loopScopes.empty();
 }

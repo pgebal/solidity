@@ -1,8 +1,8 @@
 contract C
 {
 	function f(uint x) public pure {
-	    require(x == 0);
-	    uint y;
+		require(x == 0);
+		uint y;
 		while (y < 3) {
 			++y;
 			if (y == 2)

@@ -17,3 +17,5 @@ contract C
 // SMTSolvers: z3
 // BMCLoopIterations: 3
 // ----
+// Warning 5740: (92-95): Unreachable code.
+// Warning 5740: (126-129): Unreachable code.

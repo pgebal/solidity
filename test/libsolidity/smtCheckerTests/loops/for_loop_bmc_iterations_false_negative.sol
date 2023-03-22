@@ -2,16 +2,15 @@ contract C
 {
 	function f() public pure {
 		uint x = 0;
-		do {
-			if (x > 0)
-				break;
+		for (; true;) {
 			++x;
-		} while (x < 3);
+		}
+        // fails because loop unwind depth is set to 1
 		assert(x == 1);
 	}
 }
 // ====
 // SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 3
+// BMCLoopIterations: 1
 // ----

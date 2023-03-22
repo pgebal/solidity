@@ -2,12 +2,11 @@ contract C
 {
 	function f() public pure {
 		uint x = 0;
-		do {
-			if (x > 0)
-				break;
-			++x;
-		} while (x < 3);
-		assert(x == 1);
+		for (uint i = 0; i < 3; ++i) {
+			if (i > 1)
+				x = 10;
+		}
+		assert(x == 10);
 	}
 }
 // ====
