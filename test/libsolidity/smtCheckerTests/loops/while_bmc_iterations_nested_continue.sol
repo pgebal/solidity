@@ -12,7 +12,7 @@ contract C {
 				++x;
 			}
 		}
-		assert(x == 2);
+		assert(x == 3);
 	}
 }
 // ====

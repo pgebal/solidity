@@ -16,4 +16,4 @@ contract C {
 // SMTSolvers: z3
 // BMCLoopIterations: 1
 // ----
-// Warning 4661: (201-215): BMC: Assertion violation happens here.
+// Warning 4661: (213-227): BMC: Assertion violation happens here.

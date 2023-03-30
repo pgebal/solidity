@@ -199,12 +199,26 @@ private:
 	size_t m_unprovedAmt = 0;
 
 	// stores current path conditions and SSA indices for every break and continue statement in a loop
-	struct LoopScope {
-		std::vector<std::pair<smtutil::Expression, VariableIndices>> breaks;
-		std::vector<std::pair<smtutil::Expression, VariableIndices>> continues;
+	enum class LoopControlKind
+	{
+		Continue,
+		Break
 	};
 
-	// loop scopes for every loop
-	std::stack<LoopScope> loopScopes;
+	struct LoopControl {
+		explicit LoopControl(
+			LoopControlKind _kind,
+			smtutil::Expression _pathConditions,
+			VariableIndices _variableIndicies
+		);
+
+
+		LoopControlKind kind;
+		smtutil::Expression pathConditions;
+		VariableIndices variableIndicies;
+	};
+
+	// loop control statements for every loop
+	std::stack<std::vector<LoopControl>> loopScopes;
 };
 }

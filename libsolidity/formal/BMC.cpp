@@ -25,6 +25,10 @@
 #include <liblangutil/CharStream.h>
 #include <liblangutil/CharStreamProvider.h>
 
+#include <utility>
+
+#include <utility>
+
 #ifdef HAVE_Z3_DLOPEN
 #include <z3_version.h>
 #endif
@@ -268,24 +272,20 @@ bool BMC::visit(Conditional const& _op)
 	return false;
 }
 
-// First conditional statement assumes the loop condition to be true and executes the loop ,
-// after resetting touched variables.
-// Second conditional assumes the loop condition to be false and skips it after
-// visiting the condition (it might contain side-effects, they need to be considered)
-// and does not erase knowledge.
-// If the loop is a do-while, condition side-effects are lost since the body,
-// executed once before the condition, might reassign variables.
-// Variables touched by the loop are merged with Branch 2.
+// Unrolls while or do-while loop
 bool BMC::visit(WhileStatement const& _node)
 {
-	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
-
 	auto indicesBefore = copyVariableIndices();
 
 	m_context.pushSolver();
+	// variables touched by loop might change their value
+	// assume their values are not constant
 	m_context.resetVariables(touchedVariables(_node));
 
 	_node.condition().accept(*this);
+
+	// do not apply condition target on expressions
+	// that value might be changed by other loops
 	if (isRootFunction() && (!isInsideLoop()))
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
@@ -300,45 +300,72 @@ bool BMC::visit(WhileStatement const& _node)
 	smtutil::Expression broke(false);
 	if (_node.isDoWhile())
 	{
-		LoopScope scope;
-		scope.breaks = {};
-		scope.continues = {};
-		loopScopes.push(scope);
+		loopScopes.emplace();
 
-		// do-while body is executed at least once
 		auto indicesAfter = visitBranch(&_node.body()).first;
-		start = 1;
 
-		for (auto const& breakState: loopScopes.top().breaks)
+		smtutil::Expression continues(false);
+		for (auto const& loopControl: loopScopes.top())
 		{
-			mergeVariables(!broke && breakState.first, breakState.second, copyVariableIndices());
-			broke = broke || breakState.first;
+			if (loopControl.kind == LoopControlKind::Break) {
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				broke = broke || loopControl.pathConditions;
+			} else if (loopControl.kind == LoopControlKind::Continue) {
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				continues = continues || loopControl.pathConditions;
+			}
 		}
 
-		mergeVariables(!broke, indicesAfter, copyVariableIndices());
+		// not checking loop condition to merge variables
+		// if there are no paths to breaks or continue statements do-while loop body is executed at least once
+		mergeVariables(!broke && !continues, indicesAfter, copyVariableIndices());
 
 		loopScopes.pop();
+		start = 1;
 	}
 
 	_node.condition().accept(*this);
 
+	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	for (unsigned int i = start; i < bmcLoopIterations; ++i)
 	{
-		LoopScope scope;
-		scope.breaks = {};
-		scope.continues = {};
-		loopScopes.push(scope);
+		loopScopes.emplace();
 
 		auto indicesAfter = visitBranch(&_node.body(), expr(_node.condition())).first;
 
-		for (auto const& breakState: loopScopes.top().breaks)
+		smtutil::Expression continues(false);
+		for (auto const& loopControl: loopScopes.top())
 		{
-			mergeVariables(!broke && breakState.first && expr(_node.condition()), breakState.second, copyVariableIndices());
-			broke = broke || breakState.first;
+			if (loopControl.kind == LoopControlKind::Break) {
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions && expr(_node.condition()),
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				broke = broke || loopControl.pathConditions;
+			} else if (loopControl.kind == LoopControlKind::Continue) {
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions && expr(_node.condition()),
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
+				continues = continues || loopControl.pathConditions;
+			}
 		}
 
-		mergeVariables(!broke && expr(_node.condition()), indicesAfter, copyVariableIndices());
-
+		mergeVariables(
+			!broke && !continues && expr(_node.condition()),
+			indicesAfter,
+			copyVariableIndices()
+		);
 		loopScopes.pop();
 		_node.condition().accept(*this);
 	}
@@ -347,10 +374,9 @@ bool BMC::visit(WhileStatement const& _node)
 	return false;
 }
 
-// Here we consider the execution of two branches similar to WhileStatement.
+// Unrolls for loop
 bool BMC::visit(ForStatement const& _node)
 {
-	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	if (_node.initializationExpression())
 		_node.initializationExpression()->accept(*this);
 
@@ -361,11 +387,16 @@ bool BMC::visit(ForStatement const& _node)
 		touchedVars += touchedVariables(*_node.loopExpression());
 
 	auto indicesBefore = copyVariableIndices();
-	m_context.resetVariables(touchedVars);
+
 	m_context.pushSolver();
+	// variables touched by loop might change their value
+	// assume their values are not constant
+	m_context.resetVariables(touchedVars);
 	if (_node.condition())
 	{
 		_node.condition()->accept(*this);
+		// do not apply condition target on expressions
+		// that value might be changed by other loops
 		if (isRootFunction() && (!isInsideLoop()))
 			addVerificationTarget(
 				VerificationTargetType::ConstantCondition,
@@ -382,25 +413,31 @@ bool BMC::visit(ForStatement const& _node)
 	smtutil::Expression broke(false);
 	auto forCondition = _node.condition() ? expr(*_node.condition()) : smtutil::Expression(true);
 
+	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
 	{
 		if (_node.condition())
 			_node.condition()->accept(*this);
-
-		LoopScope scope;
-		scope.breaks = {};
-		scope.continues = {};
-		loopScopes.push(scope);
+		
+		loopScopes.emplace();
 
 		auto indicesAfter = visitBranch(&_node.body(), forCondition).first;
 
-		for (auto const& breakState: loopScopes.top().breaks)
+		smtutil::Expression continues(false);
+		for (auto const& loopControl: loopScopes.top())
 		{
-			mergeVariables(!broke && breakState.first && forCondition, breakState.second, copyVariableIndices());
-			broke = broke || breakState.first;
+			if (loopControl.kind == LoopControlKind::Break) {
+				mergeVariables(!broke && !continues && loopControl.pathConditions && forCondition,
+					loopControl.variableIndicies, copyVariableIndices());
+				broke = broke || loopControl.pathConditions;
+			} else if (loopControl.kind == LoopControlKind::Continue) {
+				mergeVariables(!broke && !continues && loopControl.pathConditions && forCondition,
+					loopControl.variableIndicies, copyVariableIndices());
+				continues = continues || loopControl.pathConditions;
+			}
 		}
 
-		mergeVariables(!broke && forCondition, indicesAfter, copyVariableIndices());
+		mergeVariables(!broke && !continues && forCondition, indicesAfter, copyVariableIndices());
 
 		loopScopes.pop();
 	}
@@ -440,17 +477,25 @@ bool BMC::visit(TryStatement const& _tryStatement)
 	return false;
 }
 
-bool BMC::visit(Break const& _breakStatement)
+bool BMC::visit(Break const& breakStatement)
 {
-	(void)_breakStatement;
-	loopScopes.top().breaks.emplace_back(currentPathConditions(), copyVariableIndices());
+	(void)breakStatement;
+
+	LoopControl
+		control(LoopControlKind::Break, currentPathConditions(), copyVariableIndices());
+	loopScopes.top().emplace_back(control);
+
 	return false;
 }
 
-bool BMC::visit(Continue const& _breakStatement)
+bool BMC::visit(Continue const& continueStatement)
 {
-	(void)_breakStatement;
-	loopScopes.top().continues.emplace_back(currentPathConditions(), copyVariableIndices());
+	(void)continueStatement;
+
+	LoopControl
+		control(LoopControlKind::Continue, currentPathConditions(), copyVariableIndices());
+	loopScopes.top().emplace_back(control);
+
 	return false;
 }
 
@@ -1148,3 +1193,10 @@ bool BMC::isInsideLoop() const
 {
 	return !loopScopes.empty();
 }
+
+BMC::LoopControl::LoopControl(
+	LoopControlKind _kind,
+	smtutil::Expression _pathConditions,
+	VariableIndices _variableIndicies)
+	: kind(_kind), pathConditions(std::move(_pathConditions)), variableIndicies(std::move(_variableIndicies)) {}
+
