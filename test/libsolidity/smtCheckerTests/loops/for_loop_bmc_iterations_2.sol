@@ -3,9 +3,9 @@ contract C
 	function f() public pure {
 		uint x = 0;
 		for (uint i = 0; i < 3; ++i) {
-			x = x + i;
+			x = i;
 		}
-		assert(x == 3);
+		assert(x == 2);
 	}
 }
 // ====

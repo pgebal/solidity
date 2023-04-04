@@ -1,13 +1,12 @@
 contract C
 {
-	function f(uint x) public pure {
-		require(x == 0);
-		for (uint i = 0; i < 3; ++i) {
-			if (i > 1)
-				continue;
+	function f() public pure {
+		uint x;
+		for (;;) {
 			++x;
+			break;
 		}
-		assert(x == 2);
+		assert(x == 1);
 	}
 }
 // ====

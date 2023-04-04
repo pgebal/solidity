@@ -400,6 +400,7 @@ bool BMC::visit(ForStatement const& _node)
 {
 	if (_node.initializationExpression())
 		_node.initializationExpression()->accept(*this);
+	auto indicesBefore = copyVariableIndices();
 
 	auto touchedVars = touchedVariables(_node.body());
 	if (_node.condition())
@@ -407,11 +408,9 @@ bool BMC::visit(ForStatement const& _node)
 	if (_node.loopExpression())
 		touchedVars += touchedVariables(*_node.loopExpression());
 
-	auto indicesBefore = copyVariableIndices();
-
 	m_context.pushSolver();
 	// variables touched by loop might change their value
-	// assume their values are not constant
+	// assume values are not constant
 	m_context.resetVariables(touchedVars);
 	if (_node.condition())
 	{
@@ -424,8 +423,6 @@ bool BMC::visit(ForStatement const& _node)
 				expr(*_node.condition()),
 				_node.condition()
 			);
-
-
 	}
 	m_context.popSolver();
 
@@ -442,24 +439,41 @@ bool BMC::visit(ForStatement const& _node)
 		
 		loopScopes.emplace();
 
-		auto indicesAfter = visitBranch(&_node.body(), forCondition).first;
+		//auto indicesAfter = visitBranch(&_node.body(), forCondition).first;
+		auto indicesBefore = copyVariableIndices();
+		pushPathCondition(forCondition);
+		_node.body().accept(*this);
+		if (_node.loopExpression())
+			_node.loopExpression()->accept(*this);
+		popPathCondition();
+		auto indicesAfter = copyVariableIndices();
+		resetVariableIndices(indicesBefore);
 
 		smtutil::Expression continues(false);
 		for (auto const& loopControl: loopScopes.top())
 		{
 			if (loopControl.kind == LoopControlKind::Break) {
-				mergeVariables(!broke && !continues && loopControl.pathConditions && forCondition,
-					loopControl.variableIndicies, copyVariableIndices());
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions && forCondition,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
 				broke = broke || loopControl.pathConditions;
 			} else if (loopControl.kind == LoopControlKind::Continue) {
-				mergeVariables(!broke && !continues && loopControl.pathConditions && forCondition,
-					loopControl.variableIndicies, copyVariableIndices());
+				mergeVariables(
+					!broke && !continues && loopControl.pathConditions && forCondition,
+					loopControl.variableIndicies,
+					copyVariableIndices()
+				);
 				continues = continues || loopControl.pathConditions;
 			}
 		}
 
-		mergeVariables(!broke && !continues && forCondition, indicesAfter, copyVariableIndices());
-
+		mergeVariables(
+			!broke && !continues && forCondition,
+			indicesAfter,
+			copyVariableIndices()
+		);
 		loopScopes.pop();
 	}
 

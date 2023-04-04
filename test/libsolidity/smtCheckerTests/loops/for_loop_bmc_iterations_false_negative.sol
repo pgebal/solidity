@@ -2,11 +2,11 @@ contract C
 {
 	function f() public pure {
 		uint x = 0;
-		for (; true;) {
+		for (uint i = 0; i < 2; ++i) {
 			++x;
 		}
-        // fails because loop unwind depth is set to 1
-		assert(x == 1);
+		// verification reports a warning because loop unwinding depth is 1
+		assert(x == 2);
 	}
 }
 // ====
