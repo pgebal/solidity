@@ -12,5 +12,5 @@ contract C
 // SMTSolvers: z3
 // BMCLoopIterations: 3
 // ----
-// Warning 6838: (74-79): BMC: Condition is always false.
-// Info 6002: BMC: 2 verification condition(s) proved safe! Enable the model checker option "show proved safe" to see all of them.
+// Warning 6838: (70-75): BMC: Condition is always false.
+// Info 6002: BMC: 3 verification condition(s) proved safe! Enable the model checker option "show proved safe" to see all of them.

@@ -366,15 +366,21 @@ bool BMC::visit(WhileStatement const& _node)
 		for (auto const& loopControl: loopScopes.top())
 		{
 			if (loopControl.kind == LoopControlKind::Break) {
+				// use SSAs associated with this break statement only if
+				// loop didn't break or continue before
+				// loop condition is included in 'break' path conditions
 				mergeVariables(
-					!broke && !continues && loopControl.pathConditions && expr(_node.condition()),
+					!broke && !continues && loopControl.pathConditions,
 					loopControl.variableIndicies,
 					copyVariableIndices()
 				);
 				broke = broke || loopControl.pathConditions;
 			} else if (loopControl.kind == LoopControlKind::Continue) {
+				// use SSAs associated with this continue statement only if
+				// loop didn't break or continue before
+				// loop condition is included in continue path conditions
 				mergeVariables(
-					!broke && !continues && loopControl.pathConditions && expr(_node.condition()),
+					!broke && !continues && loopControl.pathConditions,
 					loopControl.variableIndicies,
 					copyVariableIndices()
 				);
@@ -399,9 +405,8 @@ bool BMC::visit(WhileStatement const& _node)
 bool BMC::visit(ForStatement const& _node)
 {
 	if (_node.initializationExpression())
-		_node.initializationExpression()->accept(*this);
-		
-/*	auto indicesBefore = copyVariableIndices();
+		_node.initializationExpression()->accept(*this);		
+	auto indicesBefore = copyVariableIndices();
 
 	auto touchedVars = touchedVariables(_node.body());
 	if (_node.condition())
@@ -417,7 +422,7 @@ bool BMC::visit(ForStatement const& _node)
 	{
 		_node.condition()->accept(*this);
 		// do not apply condition target on expressions
-		// that value might be changed by other loops
+		// which value might be changed by other loops
 		if (isRootFunction() && (!isInsideLoop()))
 			addVerificationTarget(
 				VerificationTargetType::ConstantCondition,
@@ -427,52 +432,64 @@ bool BMC::visit(ForStatement const& _node)
 	}
 	m_context.popSolver();
 	resetVariableIndices(indicesBefore);
-*/
-	smtutil::Expression broke(false);
-	auto forCondition = _node.condition() ? expr(*_node.condition()) : smtutil::Expression(true);
 
+	smtutil::Expression broke(false);
+	smtutil::Expression forCondition(true);
 	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
-	for (unsigned int i = 0;  i < bmcLoopIterations; ++i)
+	// run the loop one more time to capture all breaks
+	for (unsigned int i = 0; i < bmcLoopIterations; ++i)
 	{
-		if (_node.condition())
+		if (_node.condition()) {
 			_node.condition()->accept(*this);
-		
+			forCondition = expr(*_node.condition());
+		}
+		// values used in loop condition change
+		// it to be evaluated on every iteration
 		loopScopes.emplace();
 
-		//auto indicesAfter = visitBranch(&_node.body(), forCondition).first;
 		auto indicesBefore = copyVariableIndices();
 		pushPathCondition(forCondition);
 		_node.body().accept(*this);
-		if (_node.loopExpression())
-			_node.loopExpression()->accept(*this);
 		popPathCondition();
-/*
+
 		smtutil::Expression continues(false);
+		smtutil::Expression brokeInCurrentIteration(false);
 		for (auto const& loopControl: loopScopes.top())
 		{
 			if (loopControl.kind == LoopControlKind::Break) {
+				// use SSAs associated with this break statement only if
+				// loop didn't break or continue before
+				// loop condition is included in break path conditions
 				mergeVariables(
-					!broke && !continues && loopControl.pathConditions,
+					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
 					loopControl.variableIndicies,
 					copyVariableIndices()
 				);
-				broke = broke || loopControl.pathConditions;
+				brokeInCurrentIteration = 
+					brokeInCurrentIteration || loopControl.pathConditions;
 			} else if (loopControl.kind == LoopControlKind::Continue) {
+				// use SSAs associated with this continue statement only if
+				// loop didn't break or continue before
+				// loop condition is included in continue path conditions
 				mergeVariables(
-					!broke && !continues && loopControl.pathConditions,
+					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
 					loopControl.variableIndicies,
 					copyVariableIndices()
 				);
 				continues = continues || loopControl.pathConditions;
 			}
 		}
-*/
+
+		if (_node.loopExpression())
+			_node.loopExpression()->accept(*this);
+
 		mergeVariables(
-			!broke && forCondition,
-			copyVariableIndices(),
-			indicesBefore
+			broke || !forCondition,
+			indicesBefore,
+			copyVariableIndices()
 		);
 		loopScopes.pop();
+		broke = broke || brokeInCurrentIteration;
 	}
 
 	m_loopExecutionHappened = true;

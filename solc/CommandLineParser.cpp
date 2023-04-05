@@ -1367,7 +1367,7 @@ void CommandLineParser::processArgs()
 	{
 		if (!m_options.modelChecker.settings.engine.bmc)
 			solThrow(CommandLineValidationError, "BMC loop unwind depth specified for non-BMC engine");
-		m_options.modelChecker.settings.timeout = m_args[g_strModelCheckerBMCLoopIterations].as<unsigned>();
+		m_options.modelChecker.settings.bmcLoopIterations = m_args[g_strModelCheckerBMCLoopIterations].as<unsigned>();
 	}
 
 	m_options.metadata.literalSources = (m_args.count(g_strMetadataLiteral) > 0);

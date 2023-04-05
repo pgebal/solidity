@@ -2,17 +2,16 @@ contract C
 {
 	function f() public pure {
 		uint x;
-		for (;;) {
- 			break;
+		for (;x < 2;) {
 			++x;
+ 			break;
 		}
-		assert(x == 0);
+		assert(x == 1);
 	}
 }
 // ====
 // SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 4
+// BMCLoopIterations: 3
 // ----
-// Warning 5740: (86-89): Unreachable code.
 // Info 6002: BMC: 2 verification condition(s) proved safe! Enable the model checker option "show proved safe" to see all of them.

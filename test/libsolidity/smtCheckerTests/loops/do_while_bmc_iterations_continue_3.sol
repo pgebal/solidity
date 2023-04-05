@@ -5,13 +5,13 @@ contract C {
 		do {
 			++x;
 			if (x > 0) {
-                y = 1;
+				y = 1;
 				continue;
 			}
 			if (x > 0) {
-                y = 2;
-                continue;
-            }
+				y = 2;
+				continue;
+			}
 		} while (x < 3);
 		assert(y == 1);
 	}

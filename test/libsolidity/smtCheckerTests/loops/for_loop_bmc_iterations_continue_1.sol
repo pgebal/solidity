@@ -1,12 +1,13 @@
 contract C
 {
-	function f() public pure {
-		uint x;
+	function f(uint x) public pure {
+		require(x == 0);
 		for (uint i = 0; i < 3; ++i) {
-			break;
+			if (i > 1)
+				continue;
 			++x;
 		}
-		assert(x == 0);
+		assert(x == 2);
 	}
 }
 // ====
@@ -14,6 +15,4 @@ contract C
 // SMTSolvers: z3
 // BMCLoopIterations: 4
 // ----
-// Warning 5740: (77-80): Unreachable code.
-// Warning 5740: (97-100): Unreachable code.
 // Info 6002: BMC: 3 verification condition(s) proved safe! Enable the model checker option "show proved safe" to see all of them.

@@ -7,7 +7,7 @@ contract C
 				x = 1;
 				break;
 			}
-			if (i > 0) {
+			if (i >= 1) {
 				x = 2;
 				break;
 			}
@@ -20,3 +20,4 @@ contract C
 // SMTSolvers: z3
 // BMCLoopIterations: 4
 // ----
+// Info 6002: BMC: 2 verification condition(s) proved safe! Enable the model checker option "show proved safe" to see all of them.

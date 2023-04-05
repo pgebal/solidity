@@ -1,13 +1,19 @@
 contract C
 {
-	function f(uint x) public pure {
-		require(x == 0);
-		for (uint i = 0; i < 3; ++i) {
-			if (i > 1)
+	function f() public pure {
+		uint x;
+		for (; x < 2; ++x) {
+			if (x > 1) {
+				x = 10;
 				continue;
-			++x;
+			}
+			if (x > 0) {
+				x = 11;
+				continue;
+			}
 		}
-		assert(x == 2);
+		// x > 0 branch triggers x = 11 and continue triggers ++x loop expression
+		assert(x == 12);
 	}
 }
 // ====

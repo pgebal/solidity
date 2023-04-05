@@ -5,14 +5,14 @@ contract C {
 		do {
 			++x;
 			if (x == 2) {
-                ++x;
-                y = 1;
+				++x;
+				y = 1;
 				continue;
 			}
 			if (x == 3) {
-                y = 2;
-                continue;
-            }
+				y = 2;
+				continue;
+			}
 		} while (x < 3);
 		assert(y == 1);
 	}

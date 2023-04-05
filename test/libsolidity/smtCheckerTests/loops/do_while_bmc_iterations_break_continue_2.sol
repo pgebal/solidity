@@ -4,7 +4,7 @@ contract C
 		uint x;
 		do {
 			if (x > 1) {
-                x = 3;
+				x = 3;
 				break;
  			}
 			if (x >= 0) {
