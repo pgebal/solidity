@@ -1,7 +1,7 @@
 contract C
 {
 	function f() public pure {
-		x = 0;
+		uint x;
 		for (uint i = 0; i < 2; ++i) {
 			for (uint j = 0; j < 2; ++j)
 				++x;

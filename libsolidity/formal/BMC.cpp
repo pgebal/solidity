@@ -400,7 +400,8 @@ bool BMC::visit(ForStatement const& _node)
 {
 	if (_node.initializationExpression())
 		_node.initializationExpression()->accept(*this);
-	auto indicesBefore = copyVariableIndices();
+		
+/*	auto indicesBefore = copyVariableIndices();
 
 	auto touchedVars = touchedVariables(_node.body());
 	if (_node.condition())
@@ -425,9 +426,8 @@ bool BMC::visit(ForStatement const& _node)
 			);
 	}
 	m_context.popSolver();
-
 	resetVariableIndices(indicesBefore);
-
+*/
 	smtutil::Expression broke(false);
 	auto forCondition = _node.condition() ? expr(*_node.condition()) : smtutil::Expression(true);
 
@@ -446,33 +446,31 @@ bool BMC::visit(ForStatement const& _node)
 		if (_node.loopExpression())
 			_node.loopExpression()->accept(*this);
 		popPathCondition();
-		auto indicesAfter = copyVariableIndices();
-		resetVariableIndices(indicesBefore);
-
+/*
 		smtutil::Expression continues(false);
 		for (auto const& loopControl: loopScopes.top())
 		{
 			if (loopControl.kind == LoopControlKind::Break) {
 				mergeVariables(
-					!broke && !continues && loopControl.pathConditions && forCondition,
+					!broke && !continues && loopControl.pathConditions,
 					loopControl.variableIndicies,
 					copyVariableIndices()
 				);
 				broke = broke || loopControl.pathConditions;
 			} else if (loopControl.kind == LoopControlKind::Continue) {
 				mergeVariables(
-					!broke && !continues && loopControl.pathConditions && forCondition,
+					!broke && !continues && loopControl.pathConditions,
 					loopControl.variableIndicies,
 					copyVariableIndices()
 				);
 				continues = continues || loopControl.pathConditions;
 			}
 		}
-
+*/
 		mergeVariables(
-			!broke && !continues && forCondition,
-			indicesAfter,
-			copyVariableIndices()
+			!broke && forCondition,
+			copyVariableIndices(),
+			indicesBefore
 		);
 		loopScopes.pop();
 	}
