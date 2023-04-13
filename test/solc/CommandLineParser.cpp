@@ -153,7 +153,7 @@ BOOST_AUTO_TEST_CASE(cli_mode_options)
 			"--model-checker-solvers=z3,smtlib2",
 			"--model-checker-targets=underflow,divByZero",
 			"--model-checker-timeout=5",
-			"--model-checker-bmcLoopIterations=2"
+			"--model-checker-bmc-loop-iterations=2"
 		};
 
 		if (inputMode == InputMode::CompilerWithASTImport)
