@@ -157,6 +157,7 @@ struct ModelCheckerExtCalls
 
 struct ModelCheckerSettings
 {
+	std::optional<unsigned> bmcLoopIterations;
 	ModelCheckerContracts contracts = ModelCheckerContracts::Default();
 	/// Currently division and modulo are replaced by multiplication with slack vars, such that
 	/// a / b <=> a = b * k + m
@@ -174,12 +175,12 @@ struct ModelCheckerSettings
 	smtutil::SMTSolverChoice solvers = smtutil::SMTSolverChoice::Z3();
 	ModelCheckerTargets targets = ModelCheckerTargets::Default();
 	std::optional<unsigned> timeout;
-	std::optional<unsigned> bmcLoopIterations;
 
 	bool operator!=(ModelCheckerSettings const& _other) const noexcept { return !(*this == _other); }
 	bool operator==(ModelCheckerSettings const& _other) const noexcept
 	{
 		return
+			bmcLoopIterations == _other.bmcLoopIterations &&
 			contracts == _other.contracts &&
 			divModNoSlacks == _other.divModNoSlacks &&
 			engine == _other.engine &&
@@ -190,8 +191,7 @@ struct ModelCheckerSettings
 			showUnsupported == _other.showUnsupported &&
 			solvers == _other.solvers &&
 			targets == _other.targets &&
-			timeout == _other.timeout &&
-			bmcLoopIterations == _other.bmcLoopIterations;
+			timeout == _other.timeout;
 	}
 };
 

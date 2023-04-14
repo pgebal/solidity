@@ -220,13 +220,12 @@ private:
 		explicit LoopControl(
 			LoopControlKind _kind,
 			smtutil::Expression _pathConditions,
-			VariableIndices _variableIndicies
+			VariableIndices _variableIndices
 		);
-
 
 		LoopControlKind kind;
 		smtutil::Expression pathConditions;
-		VariableIndices variableIndicies;
+		VariableIndices variableIndices;
 	};
 
 	// Loop control statements for every loop

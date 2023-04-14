@@ -330,24 +330,15 @@ bool BMC::visit(WhileStatement const& _node)
 		smtutil::Expression continues(false);
 		for (auto const& loopControl: loopScopes.top())
 		{
+			mergeVariables(
+				!broke && !continues && loopControl.pathConditions,
+				loopControl.variableIndices,
+				copyVariableIndices()
+			);
 			if (loopControl.kind == LoopControlKind::Break)
-			{
-				mergeVariables(
-					!broke && !continues && loopControl.pathConditions,
-					loopControl.variableIndicies,
-					copyVariableIndices()
-				);
 				broke = broke || loopControl.pathConditions;
-			}
 			else if (loopControl.kind == LoopControlKind::Continue)
-			{
-				mergeVariables(
-					!broke && !continues && loopControl.pathConditions,
-					loopControl.variableIndicies,
-					copyVariableIndices()
-				);
 				continues = continues || loopControl.pathConditions;
-			}
 		}
 
 		// not checking loop condition to merge variables
@@ -370,30 +361,18 @@ bool BMC::visit(WhileStatement const& _node)
 		smtutil::Expression continues(false);
 		for (auto const& loopControl: loopScopes.top())
 		{
+			// use SSAs associated with this continue statement only if
+			// loop didn't break or continue before
+			// loop condition is included in continue path conditions
+			mergeVariables(
+				!broke && !continues && loopControl.pathConditions,
+				loopControl.variableIndices,
+				copyVariableIndices()
+			);
 			if (loopControl.kind == LoopControlKind::Break)
-			{
-				// use SSAs associated with this break statement only if
-				// loop didn't break or continue before
-				// loop condition is included in 'break' path conditions
-				mergeVariables(
-					!broke && !continues && loopControl.pathConditions,
-					loopControl.variableIndicies,
-					copyVariableIndices()
-				);
 				broke = broke || loopControl.pathConditions;
-			}
 			else if (loopControl.kind == LoopControlKind::Continue)
-			{
-				// use SSAs associated with this continue statement only if
-				// loop didn't break or continue before
-				// loop condition is included in continue path conditions
-				mergeVariables(
-					!broke && !continues && loopControl.pathConditions,
-					loopControl.variableIndicies,
-					copyVariableIndices()
-				);
 				continues = continues || loopControl.pathConditions;
-			}
 		}
 
 		mergeVariables(
@@ -463,31 +442,19 @@ bool BMC::visit(ForStatement const& _node)
 		smtutil::Expression brokeInCurrentIteration(false);
 		for (auto const& loopControl: loopScopes.top())
 		{
+			// use SSAs associated with this break statement only if
+			// loop didn't break or continue earlier in the iteration
+			// loop condition is included in break path conditions
+			mergeVariables(
+				!brokeInCurrentIteration && !continues && loopControl.pathConditions,
+				loopControl.variableIndices,
+				copyVariableIndices()
+			);
 			if (loopControl.kind == LoopControlKind::Break)
-			{
-				// use SSAs associated with this break statement only if
-				// loop didn't break or continue earlier in the iteration
-				// loop condition is included in break path conditions
-				mergeVariables(
-					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
-					loopControl.variableIndicies,
-					copyVariableIndices()
-				);
 				brokeInCurrentIteration =
 					brokeInCurrentIteration || loopControl.pathConditions;
-			}
 			else if (loopControl.kind == LoopControlKind::Continue)
-			{
-				// use SSAs associated with this continue statement only if
-				// loop didn't break or continue earlier in the iteration
-				// loop condition is included in continue path conditions
-				mergeVariables(
-					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
-					loopControl.variableIndicies,
-					copyVariableIndices()
-				);
 				continues = continues || loopControl.pathConditions;
-			}
 		}
 
 		if (_node.loopExpression())
@@ -539,10 +506,8 @@ bool BMC::visit(TryStatement const& _tryStatement)
 	return false;
 }
 
-bool BMC::visit(Break const& breakStatement)
+bool BMC::visit(Break const&)
 {
-	(void)breakStatement;
-
 	LoopControl
 		control(LoopControlKind::Break, currentPathConditions(), copyVariableIndices());
 	loopScopes.top().emplace_back(control);
@@ -550,10 +515,8 @@ bool BMC::visit(Break const& breakStatement)
 	return false;
 }
 
-bool BMC::visit(Continue const& continueStatement)
+bool BMC::visit(Continue const&)
 {
-	(void)continueStatement;
-
 	LoopControl
 		control(LoopControlKind::Continue, currentPathConditions(), copyVariableIndices());
 	loopScopes.top().emplace_back(control);
@@ -1286,6 +1249,6 @@ bool BMC::isInsideLoop() const
 BMC::LoopControl::LoopControl(
 	LoopControlKind _kind,
 	smtutil::Expression _pathConditions,
-	VariableIndices _variableIndicies)
-	: kind(_kind), pathConditions(std::move(_pathConditions)), variableIndicies(std::move(_variableIndicies)) {}
+	VariableIndices _variableIndices)
+	: kind(_kind), pathConditions(std::move(_pathConditions)), variableIndices(std::move(_variableIndices)) {}
 

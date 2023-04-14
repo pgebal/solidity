@@ -105,6 +105,7 @@ void FuzzerUtil::testCompiler(
 	{
 		forceSMT(_input);
 		compiler.setModelCheckerSettings({
+			/*bmcLoopIterations*/1,
 			frontend::ModelCheckerContracts::Default(),
 			/*divModWithSlacks*/true,
 			frontend::ModelCheckerEngine::All(),
@@ -115,8 +116,7 @@ void FuzzerUtil::testCompiler(
 			/*showUnsupported=*/false,
 			smtutil::SMTSolverChoice::All(),
 			frontend::ModelCheckerTargets::Default(),
-			/*timeout=*/1,
-			/*bmcLoopIterations*/1,
+			/*timeout=*/1
 		});
 	}
 	compiler.setSources(_input);

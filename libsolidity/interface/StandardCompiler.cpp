@@ -445,7 +445,7 @@ std::optional<Json::Value> checkSettingsKeys(Json::Value const& _input)
 
 std::optional<Json::Value> checkModelCheckerSettingsKeys(Json::Value const& _input)
 {
-	static set<string> keys{"contracts", "divModNoSlacks", "engine", "extCalls", "invariants", "bmcLoopIterations", "showProvedSafe", "showUnproved", "showUnsupported", "solvers", "targets", "timeout"};
+	static set<string> keys{"bmcLoopIterations", "contracts", "divModNoSlacks", "engine", "extCalls", "invariants", "showProvedSafe", "showUnproved", "showUnsupported", "solvers", "targets", "timeout"};
 	return checkKeys(_input, keys, "modelChecker");
 }
 

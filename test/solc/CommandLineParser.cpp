@@ -142,6 +142,7 @@ BOOST_AUTO_TEST_CASE(cli_mode_options)
 			"--optimize",
 			"--optimize-runs=1000",
 			"--yul-optimizations=agf",
+			"--model-checker-bmc-loop-iterations=2",
 			"--model-checker-contracts=contract1.yul:A,contract2.yul:B",
 			"--model-checker-div-mod-no-slacks",
 			"--model-checker-engine=bmc",
@@ -152,8 +153,7 @@ BOOST_AUTO_TEST_CASE(cli_mode_options)
 			"--model-checker-show-unsupported",
 			"--model-checker-solvers=z3,smtlib2",
 			"--model-checker-targets=underflow,divByZero",
-			"--model-checker-timeout=5",
-			"--model-checker-bmc-loop-iterations=2"
+			"--model-checker-timeout=5"
 		};
 
 		if (inputMode == InputMode::CompilerWithASTImport)
@@ -212,6 +212,7 @@ BOOST_AUTO_TEST_CASE(cli_mode_options)
 
 		expectedOptions.modelChecker.initialize = true;
 		expectedOptions.modelChecker.settings = {
+			2,
 			{{{"contract1.yul", {"A"}}, {"contract2.yul", {"B"}}}},
 			true,
 			{true, false},
@@ -223,7 +224,6 @@ BOOST_AUTO_TEST_CASE(cli_mode_options)
 			{false, false, true, true},
 			{{VerificationTargetType::Underflow, VerificationTargetType::DivByZero}},
 			5,
-			2,
 		};
 
 		CommandLineOptions parsedOptions = parseCommandLine(commandLine);
