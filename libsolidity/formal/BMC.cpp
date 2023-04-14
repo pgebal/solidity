@@ -281,7 +281,7 @@ bool BMC::visit(Conditional const& _op)
 	m_context.pushSolver();
 	_op.condition().accept(*this);
 
-	if (isRootFunction() && (!isInsideLoop()))
+	if (isRootFunction() && !isInsideLoop())
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(_op.condition()),
