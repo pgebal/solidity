@@ -309,7 +309,7 @@ bool BMC::visit(WhileStatement const& _node)
 
 	// do not apply condition target on expressions
 	// that value might be changed by other loops
-	if (isRootFunction() && (!isInsideLoop()))
+	if (isRootFunction() && !isInsideLoop())
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(_node.condition()),
