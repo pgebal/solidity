@@ -982,7 +982,7 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 	if (modelCheckerSettings.isMember("bmcLoopIterations"))
 	{
 		if (!ret.modelCheckerSettings.engine.bmc)
-			return formatFatalError(Error::Type::JSONError, "settings.modelChecker.bmcLoopIterations must be used only with bmc engine.");
+			return formatFatalError(Error::Type::JSONError, "settings.modelChecker.bmcLoopIterations requires the BMC engine to be enabled.");
 		if (modelCheckerSettings["bmcLoopIterations"].isUInt())
 			ret.modelCheckerSettings.bmcLoopIterations = modelCheckerSettings["bmcLoopIterations"].asUInt();
 		else
