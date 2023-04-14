@@ -882,7 +882,7 @@ General Information)").c_str(),
 		(
 			g_strModelCheckerBMCLoopIterations.c_str(),
 			po::value<unsigned>(),
-			"Set loop unwinding depth for BMC engine."
+			"Set loop unrolling depth for BMC engine."
 			"Default is 1."
 		)
 	;
