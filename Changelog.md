@@ -25,7 +25,7 @@ Compiler Features:
  * SMTChecker: Properties that are proved safe are now reported explicitly at the end of analysis. By default, only the number of safe properties is shown. The CLI option ``--model-checker-show-proved-safe`` and the JSON option ``settings.modelChecker.showProvedSafe`` can be enabled to show the full list of safe properties.
  * Standard JSON Interface: Add experimental support for importing ASTs via Standard JSON.
  * Yul EVM Code Transform: If available, use ``push0`` instead of ``codesize`` to produce an arbitrary value on stack in order to create equal stack heights between branches.
- * SMTChecker: Add CLI option ``--model-checker-bmc-loop-iterations`` and a JSON option ``settings.modelChecker.bmcLoopIterations`` that specify number of times that BMC model checker runs loops.
+ * SMTChecker: Add CLI option ``--model-checker-bmc-loop-iterations`` and a JSON option ``settings.modelChecker.bmcLoopIterations`` that specify how many loop iterations the BMC engine should unroll.
 
 
 Bugfixes:
