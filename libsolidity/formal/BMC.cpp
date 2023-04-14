@@ -246,7 +246,7 @@ bool BMC::visit(IfStatement const& _node)
 
 	// We ignore called functions here because they have
 	// specific input values.
-	if (isRootFunction() && (!isInsideLoop()))
+	if (isRootFunction() && !isInsideLoop())
 		addVerificationTarget(
 			VerificationTargetType::ConstantCondition,
 			expr(_node.condition()),
