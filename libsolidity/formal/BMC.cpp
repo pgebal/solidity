@@ -319,70 +319,109 @@ bool BMC::visit(WhileStatement const& _node)
 
 	resetVariableIndices(indicesBefore);
 
-	unsigned int start = 0;
+	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	smtutil::Expression broke(false);
+	smtutil::Expression loopCondition(true);
 	if (_node.isDoWhile())
 	{
-		loopScopes.emplace();
-
-		auto indicesAfter = visitBranch(&_node.body()).first;
-
-		smtutil::Expression continues(false);
-		for (auto const& loopControl: loopScopes.top())
+		for (unsigned int i = 0; i < bmcLoopIterations; ++i)
 		{
+			loopScopes.emplace();
+
+			auto indicesBefore = copyVariableIndices();
+			pushPathCondition(loopCondition);
+			_node.body().accept(*this);
+			popPathCondition();
+			
+
+			smtutil::Expression continues(false);
+			smtutil::Expression brokeInCurrentIteration(false);
+			for (auto const& loopControl: loopScopes.top())
+			{
+				// use SSAs associated with this continue statement only if
+				// loop didn't break or continue before
+				// loop condition is included in continue path conditions
+				mergeVariables(
+					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
+					loopControl.variableIndices,
+					copyVariableIndices()
+				);
+				if (loopControl.kind == LoopControlKind::Break)
+					brokeInCurrentIteration =
+						brokeInCurrentIteration || loopControl.pathConditions;
+				else if (loopControl.kind == LoopControlKind::Continue)
+					continues = continues || loopControl.pathConditions;
+			}
+
+			// accept loop condition after continue statement
+			auto indicesNoContinue = copyVariableIndices();
+			_node.condition().accept(*this);
+
+			// handles breaks in previous iterations
+			// breaks in current iterations are handled when traversing loop scopes
 			mergeVariables(
-				!broke && !continues && loopControl.pathConditions,
-				loopControl.variableIndices,
+				broke || !loopCondition,
+				indicesBefore,
 				copyVariableIndices()
 			);
-			if (loopControl.kind == LoopControlKind::Break)
-				broke = broke || loopControl.pathConditions;
-			else if (loopControl.kind == LoopControlKind::Continue)
-				continues = continues || loopControl.pathConditions;
+
+			broke = broke || brokeInCurrentIteration;
+			// accepts condition if there was no break
+			auto indicesNoBreak = copyVariableIndices();
+			_node.condition().accept(*this);
+			loopCondition = expr(_node.condition());
+			mergeVariables(
+				broke,
+				indicesNoBreak,
+				copyVariableIndices()
+			);
+			loopScopes.pop();
 		}
-
-		// not checking loop condition to merge variables
-		// if there are no paths to breaks or continue statements, do-while loop body is fully executed at least once
-		mergeVariables(!broke && !continues, indicesAfter, copyVariableIndices());
-
-		loopScopes.pop();
-		start = 1;
 	}
-
-	_node.condition().accept(*this);
-
-	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
-	for (unsigned int i = start; i < bmcLoopIterations; ++i)
+	else
 	{
-		loopScopes.emplace();
-
-		auto indicesAfter = visitBranch(&_node.body(), expr(_node.condition())).first;
-
-		smtutil::Expression continues(false);
-		for (auto const& loopControl: loopScopes.top())
+		for (unsigned int i = 0; i < bmcLoopIterations; ++i)
 		{
-			// use SSAs associated with this continue statement only if
-			// loop didn't break or continue before
-			// loop condition is included in continue path conditions
+			loopScopes.emplace();
+
+			auto indicesBefore = copyVariableIndices();
+			_node.condition().accept(*this);
+			loopCondition = expr(_node.condition());
+
+			pushPathCondition(loopCondition);
+			_node.body().accept(*this);
+			popPathCondition();
+
+			smtutil::Expression continues(false);
+			smtutil::Expression brokeInCurrentIteration(false);
+			for (auto const& loopControl: loopScopes.top())
+			{
+				// use SSAs associated with this continue statement only if
+				// loop didn't break or continue before
+				// loop condition is included in continue path conditions
+				mergeVariables(
+					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
+					loopControl.variableIndices,
+					copyVariableIndices()
+				);
+				if (loopControl.kind == LoopControlKind::Break)
+					brokeInCurrentIteration =
+						brokeInCurrentIteration || loopControl.pathConditions;
+				else if (loopControl.kind == LoopControlKind::Continue)
+					continues = continues || loopControl.pathConditions;
+			}
+
+			// handles breaks in previous iterations
+			// breaks in current iterations are handled when traversing loop scopes
 			mergeVariables(
-				!broke && !continues && loopControl.pathConditions,
-				loopControl.variableIndices,
+				broke || !loopCondition,
+				indicesBefore,
 				copyVariableIndices()
 			);
-			if (loopControl.kind == LoopControlKind::Break)
-				broke = broke || loopControl.pathConditions;
-			else if (loopControl.kind == LoopControlKind::Continue)
-				continues = continues || loopControl.pathConditions;
+			loopScopes.pop();
+			broke = broke || brokeInCurrentIteration;
 		}
-
-		mergeVariables(
-			!broke && !continues && expr(_node.condition()),
-			indicesAfter,
-			copyVariableIndices()
-		);
-		loopScopes.pop();
-		_node.condition().accept(*this);
-	}
+	}	
 
 	m_loopExecutionHappened = true;
 	return false;
