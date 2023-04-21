@@ -332,7 +332,6 @@ bool BMC::visit(WhileStatement const& _node)
 			pushPathCondition(loopCondition);
 			_node.body().accept(*this);
 			popPathCondition();
-			
 
 			smtutil::Expression continues(false);
 			smtutil::Expression brokeInCurrentIteration(false);
@@ -421,7 +420,7 @@ bool BMC::visit(WhileStatement const& _node)
 			loopScopes.pop();
 			broke = broke || brokeInCurrentIteration;
 		}
-	}	
+	}
 
 	m_loopExecutionHappened = true;
 	return false;
@@ -508,7 +507,7 @@ bool BMC::visit(ForStatement const& _node)
 				copyVariableIndices(),
 				indicesNoContinue
 			);
-		}	
+		}
 
 		// handles breaks in previous iterations
 		// breaks in current iterations are handled when traversing loop scopes
