@@ -436,6 +436,8 @@ bool BMC::visit(ForStatement const& _node)
 		auto indicesBefore = copyVariableIndices();
 		pushPathCondition(forCondition);
 		_node.body().accept(*this);
+		if (_node.loopExpression())
+			_node.loopExpression()->accept(*this);
 		popPathCondition();
 
 		smtutil::Expression continues(false);
@@ -457,11 +459,20 @@ bool BMC::visit(ForStatement const& _node)
 				continues = continues || loopControl.pathConditions;
 		}
 
+		// accept loop expression on continue statement
 		if (_node.loopExpression())
+		{
+			auto indicesNoContinue = copyVariableIndices();
 			_node.loopExpression()->accept(*this);
+			mergeVariables(
+				continues,
+				copyVariableIndices(),
+				indicesNoContinue
+			);
+		}	
 
 		// handles breaks in previous iterations
-		// breaks in current iterations are handled in the code above
+		// breaks in current iterations are handled when traversing loop scopes
 		mergeVariables(
 			broke || !forCondition,
 			indicesBefore,
