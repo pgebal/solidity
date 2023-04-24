@@ -538,19 +538,23 @@ bool BMC::visit(TryStatement const& _tryStatement)
 
 bool BMC::visit(Break const&)
 {
-	LoopControl
-		control(LoopControlKind::Break, currentPathConditions(), copyVariableIndices());
+	LoopControl control = {
+		LoopControlKind::Break,
+		currentPathConditions(),
+		copyVariableIndices()
+	};
 	loopScopes.top().emplace_back(control);
-
 	return false;
 }
 
 bool BMC::visit(Continue const&)
 {
-	LoopControl
-		control(LoopControlKind::Continue, currentPathConditions(), copyVariableIndices());
+	LoopControl control = {
+		LoopControlKind::Continue,
+		currentPathConditions(),
+		copyVariableIndices()
+	};
 	loopScopes.top().emplace_back(control);
-
 	return false;
 }
 
@@ -1272,10 +1276,3 @@ void BMC::assignment(smt::SymbolicVariable& _symVar, smtutil::Expression const& 
 }
 
 bool BMC::isInsideLoop() const { return !loopScopes.empty(); }
-
-BMC::LoopControl::LoopControl(
-	LoopControlKind _kind,
-	smtutil::Expression _pathConditions,
-	VariableIndices _variableIndices)
-	: kind(_kind), pathConditions(std::move(_pathConditions)), variableIndices(std::move(_variableIndices)) {}
-

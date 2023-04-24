@@ -218,12 +218,6 @@ private:
 
 	// Current path conditions and SSA indices for break or continue statement
 	struct LoopControl {
-		explicit LoopControl(
-			LoopControlKind _kind,
-			smtutil::Expression _pathConditions,
-			VariableIndices _variableIndices
-		);
-
 		LoopControlKind kind;
 		smtutil::Expression pathConditions;
 		VariableIndices variableIndices;
