@@ -1273,4 +1273,7 @@ void BMC::assignment(smt::SymbolicVariable& _symVar, smtutil::Expression const& 
 	));
 }
 
-bool BMC::isInsideLoop() const { return !loopScopes.empty(); }
+bool BMC::isInsideLoop() const
+{
+    return !loopScopes.empty();
+}
