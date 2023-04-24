@@ -450,9 +450,7 @@ bool BMC::visit(ForStatement const& _node)
 			_node.loopExpression()->accept(*this);
 		popPathCondition();
 
-		smtutil::Expression continues(false);
-		smtutil::Expression brokeInCurrentIteration(false);
-		tie(continues, brokeInCurrentIteration) =
+		auto [continues, brokeInCurrentIteration] =
 			mergeVariablesFromLoopScopes();
 
 		// accept loop expression on continue statement
