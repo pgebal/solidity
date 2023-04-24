@@ -335,22 +335,8 @@ bool BMC::visit(WhileStatement const& _node)
 
 			smtutil::Expression continues(false);
 			smtutil::Expression brokeInCurrentIteration(false);
-			for (auto const& loopControl: loopScopes.top())
-			{
-				// use SSAs associated with this continue statement only if
-				// loop didn't break or continue before
-				// loop condition is included in continue path conditions
-				mergeVariables(
-					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
-					loopControl.variableIndices,
-					copyVariableIndices()
-				);
-				if (loopControl.kind == LoopControlKind::Break)
-					brokeInCurrentIteration =
-						brokeInCurrentIteration || loopControl.pathConditions;
-				else if (loopControl.kind == LoopControlKind::Continue)
-					continues = continues || loopControl.pathConditions;
-			}
+			tie(continues, brokeInCurrentIteration) =
+				mergeVariablesFromLoopScopes();
 
 			// accept loop condition after continue statement
 			auto indicesNoContinue = copyVariableIndices();
@@ -393,22 +379,8 @@ bool BMC::visit(WhileStatement const& _node)
 
 			smtutil::Expression continues(false);
 			smtutil::Expression brokeInCurrentIteration(false);
-			for (auto const& loopControl: loopScopes.top())
-			{
-				// use SSAs associated with this continue statement only if
-				// loop didn't break or continue before
-				// loop condition is included in continue path conditions
-				mergeVariables(
-					!brokeInCurrentIteration && !continues && loopControl.pathConditions,
-					loopControl.variableIndices,
-					copyVariableIndices()
-				);
-				if (loopControl.kind == LoopControlKind::Break)
-					brokeInCurrentIteration =
-						brokeInCurrentIteration || loopControl.pathConditions;
-				else if (loopControl.kind == LoopControlKind::Continue)
-					continues = continues || loopControl.pathConditions;
-			}
+			tie(continues, brokeInCurrentIteration) =
+				mergeVariablesFromLoopScopes();
 
 			// handles breaks in previous iterations
 			// breaks in current iterations are handled when traversing loop scopes
@@ -480,22 +452,8 @@ bool BMC::visit(ForStatement const& _node)
 
 		smtutil::Expression continues(false);
 		smtutil::Expression brokeInCurrentIteration(false);
-		for (auto const& loopControl: loopScopes.top())
-		{
-			// use SSAs associated with this break statement only if
-			// loop didn't break or continue earlier in the iteration
-			// loop condition is included in break path conditions
-			mergeVariables(
-				!brokeInCurrentIteration && !continues && loopControl.pathConditions,
-				loopControl.variableIndices,
-				copyVariableIndices()
-			);
-			if (loopControl.kind == LoopControlKind::Break)
-				brokeInCurrentIteration =
-					brokeInCurrentIteration || loopControl.pathConditions;
-			else if (loopControl.kind == LoopControlKind::Continue)
-				continues = continues || loopControl.pathConditions;
-		}
+		tie(continues, brokeInCurrentIteration) =
+			mergeVariablesFromLoopScopes();
 
 		// accept loop expression on continue statement
 		if (_node.loopExpression())
@@ -522,6 +480,29 @@ bool BMC::visit(ForStatement const& _node)
 
 	m_loopExecutionHappened = true;
 	return false;
+}
+
+std::tuple<smtutil::Expression, smtutil::Expression> BMC::mergeVariablesFromLoopScopes()
+{
+	smtutil::Expression continues(false);
+	smtutil::Expression brokeInCurrentIteration(false);
+	for (auto const& loopControl: loopScopes.top())
+	{
+		// use SSAs associated with this break statement only if
+		// loop didn't break or continue earlier in the iteration
+		// loop condition is included in break path conditions
+		mergeVariables(
+			!brokeInCurrentIteration && !continues && loopControl.pathConditions,
+			loopControl.variableIndices,
+			copyVariableIndices()
+		);
+		if (loopControl.kind == LoopControlKind::Break)
+			brokeInCurrentIteration =
+				brokeInCurrentIteration || loopControl.pathConditions;
+		else if (loopControl.kind == LoopControlKind::Continue)
+			continues = continues || loopControl.pathConditions;
+	}
+	return std::pair(continues, brokeInCurrentIteration);
 }
 
 bool BMC::visit(TryStatement const& _tryStatement)
@@ -1290,10 +1271,7 @@ void BMC::assignment(smt::SymbolicVariable& _symVar, smtutil::Expression const& 
 	));
 }
 
-bool BMC::isInsideLoop() const
-{
-	return !loopScopes.empty();
-}
+bool BMC::isInsideLoop() const { return !loopScopes.empty(); }
 
 BMC::LoopControl::LoopControl(
 	LoopControlKind _kind,
