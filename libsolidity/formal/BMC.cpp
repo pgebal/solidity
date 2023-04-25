@@ -332,19 +332,9 @@ bool BMC::visit(WhileStatement const& _node)
 		_node.condition().accept(*this);
 
 		auto [continues, brokeInCurrentIteration] =
-			mergeVariablesFromLoopScopes();
+			mergeVariablesFromLoopCheckpoints();
 
-		// accept loop condition after continue statement
-		auto indicesNoContinue = copyVariableIndices();
-		_node.condition().accept(*this);
-
-		// handles breaks in previous iterations
-		// breaks in current iterations are handled when traversing loop checkpoints
-		mergeVariables(
-			continues,
-			copyVariableIndices(),
-			indicesNoContinue
-		);
+		acceptLoopConditionOnContinueStatement(_node, continues);
 
 		broke = broke || brokeInCurrentIteration;
 		m_loopCheckpoints.pop();
@@ -366,16 +356,9 @@ bool BMC::visit(WhileStatement const& _node)
 		popPathCondition();
 
 		auto [continues, brokeInCurrentIteration] =
-			mergeVariablesFromLoopScopes();
+			mergeVariablesFromLoopCheckpoints();
 
-		auto indicesNoContinue = copyVariableIndices();
-		_node.condition().accept(*this);
-
-		mergeVariables(
-			continues,
-			copyVariableIndices(),
-			indicesNoContinue
-		);
+		acceptLoopConditionOnContinueStatement(_node, continues);
 
 		// handles breaks in previous iterations
 		// breaks in current iterations are handled when traversing loop checkpoints
@@ -445,7 +428,7 @@ bool BMC::visit(ForStatement const& _node)
 		popPathCondition();
 
 		auto [continues, brokeInCurrentIteration] =
-			mergeVariablesFromLoopScopes();
+			mergeVariablesFromLoopCheckpoints();
 
 		// accept loop expression on continue statement
 		if (_node.loopExpression())
@@ -474,7 +457,7 @@ bool BMC::visit(ForStatement const& _node)
 	return false;
 }
 
-std::tuple<smtutil::Expression, smtutil::Expression> BMC::mergeVariablesFromLoopScopes()
+std::tuple<smtutil::Expression, smtutil::Expression> BMC::mergeVariablesFromLoopCheckpoints()
 {
 	smtutil::Expression continues(false);
 	smtutil::Expression brokeInCurrentIteration(false);
@@ -496,6 +479,21 @@ std::tuple<smtutil::Expression, smtutil::Expression> BMC::mergeVariablesFromLoop
 	}
 	return std::pair(continues, brokeInCurrentIteration);
 }
+
+
+void BMC::acceptLoopConditionOnContinueStatement(
+	WhileStatement const& _node,
+	smtutil::Expression continues)
+{
+	auto indicesNoContinue = copyVariableIndices();
+	_node.condition().accept(*this);
+	mergeVariables(
+		continues,
+		copyVariableIndices(),
+		indicesNoContinue
+	);
+}
+
 
 bool BMC::visit(TryStatement const& _tryStatement)
 {
