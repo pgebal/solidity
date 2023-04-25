@@ -480,7 +480,6 @@ std::tuple<smtutil::Expression, smtutil::Expression> BMC::mergeVariablesFromLoop
 	return std::pair(continues, brokeInCurrentIteration);
 }
 
-
 void BMC::acceptLoopConditionOnContinueStatement(
 	WhileStatement const& _node,
 	smtutil::Expression continues)
@@ -493,7 +492,6 @@ void BMC::acceptLoopConditionOnContinueStatement(
 		indicesNoContinue
 	);
 }
-
 
 bool BMC::visit(TryStatement const& _tryStatement)
 {
