@@ -322,76 +322,70 @@ bool BMC::visit(WhileStatement const& _node)
 	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	smtutil::Expression broke(false);
 	smtutil::Expression loopCondition(true);
+	unsigned int start = 0;
 	if (_node.isDoWhile())
 	{
-		for (unsigned int i = 0; i < bmcLoopIterations; ++i)
-		{
-			m_loopCheckpoints.emplace();
+		m_loopCheckpoints.emplace();
 
-			auto indicesBefore = copyVariableIndices();
-			pushPathCondition(loopCondition);
-			_node.body().accept(*this);
-			popPathCondition();
+		auto indicesBefore = copyVariableIndices();
+		_node.body().accept(*this);
+		_node.condition().accept(*this);
 
-			smtutil::Expression continues(false);
-			smtutil::Expression brokeInCurrentIteration(false);
-			auto [continues, brokeInCurrentIteration] =
-				mergeVariablesFromLoopScopes();
+		auto [continues, brokeInCurrentIteration] =
+			mergeVariablesFromLoopScopes();
 
-			// accept loop condition after continue statement
-			auto indicesNoContinue = copyVariableIndices();
-			_node.condition().accept(*this);
+		// accept loop condition after continue statement
+		auto indicesNoContinue = copyVariableIndices();
+		_node.condition().accept(*this);
 
-			// handles breaks in previous iterations
-			// breaks in current iterations are handled when traversing loop checkpoints
-			mergeVariables(
-				broke || !loopCondition,
-				indicesBefore,
-				copyVariableIndices()
-			);
+		// handles breaks in previous iterations
+		// breaks in current iterations are handled when traversing loop checkpoints
+		mergeVariables(
+			continues,
+			copyVariableIndices(),
+			indicesNoContinue
+		);
 
-			broke = broke || brokeInCurrentIteration;
-			// accepts condition if there was no break
-			auto indicesNoBreak = copyVariableIndices();
-			_node.condition().accept(*this);
-			loopCondition = expr(_node.condition());
-			mergeVariables(
-				broke,
-				indicesNoBreak,
-				copyVariableIndices()
-			);
-			m_loopCheckpoints.pop();
-		}
+		broke = broke || brokeInCurrentIteration;
+		m_loopCheckpoints.pop();
+		start = 1;
 	}
 	else
+		_node.condition().accept(*this);
+
+	for (unsigned int i = start; i < bmcLoopIterations; ++i)
 	{
-		for (unsigned int i = 0; i < bmcLoopIterations; ++i)
-		{
-			m_loopCheckpoints.emplace();
+		m_loopCheckpoints.emplace();
 
-			auto indicesBefore = copyVariableIndices();
-			_node.condition().accept(*this);
-			loopCondition = expr(_node.condition());
+		auto indicesBefore = copyVariableIndices();
+		loopCondition = expr(_node.condition());
 
-			pushPathCondition(loopCondition);
-			_node.body().accept(*this);
-			popPathCondition();
+		pushPathCondition(loopCondition);
+		_node.body().accept(*this);
+		_node.condition().accept(*this);
+		popPathCondition();
 
-			smtutil::Expression continues(false);
-			smtutil::Expression brokeInCurrentIteration(false);
-			auto [continues, brokeInCurrentIteration] =
-				mergeVariablesFromLoopScopes();
+		auto [continues, brokeInCurrentIteration] =
+			mergeVariablesFromLoopScopes();
 
-			// handles breaks in previous iterations
-			// breaks in current iterations are handled when traversing loop checkpoints
-			mergeVariables(
-				broke || !loopCondition,
-				indicesBefore,
-				copyVariableIndices()
-			);
-			m_loopCheckpoints.pop();
-			broke = broke || brokeInCurrentIteration;
-		}
+		auto indicesNoContinue = copyVariableIndices();
+		_node.condition().accept(*this);
+
+		mergeVariables(
+			continues,
+			copyVariableIndices(),
+			indicesNoContinue
+		);
+
+		// handles breaks in previous iterations
+		// breaks in current iterations are handled when traversing loop checkpoints
+		mergeVariables(
+			broke || !loopCondition,
+			indicesBefore,
+			copyVariableIndices()
+		);
+		m_loopCheckpoints.pop();
+		broke = broke || brokeInCurrentIteration;
 	}
 
 	m_loopExecutionHappened = true;

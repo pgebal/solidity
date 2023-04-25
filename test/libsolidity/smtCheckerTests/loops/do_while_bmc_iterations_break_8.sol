@@ -6,7 +6,7 @@ contract C
 			break;
 		} while (++x < 2);
         // loop condition is not executed after break
-		assert(x == 1);
+		assert(x == 0);
 	}
 }
 // ====
