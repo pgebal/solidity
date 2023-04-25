@@ -224,6 +224,6 @@ private:
 	};
 
 	// Loop control statements for every loop
-	std::stack<std::vector<LoopControl>> loopScopes;
+	std::stack<std::vector<LoopControl>> m_loopCheckpoints;
 };
 }

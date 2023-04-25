@@ -326,7 +326,7 @@ bool BMC::visit(WhileStatement const& _node)
 	{
 		for (unsigned int i = 0; i < bmcLoopIterations; ++i)
 		{
-			loopScopes.emplace();
+			m_loopCheckpoints.emplace();
 
 			auto indicesBefore = copyVariableIndices();
 			pushPathCondition(loopCondition);
@@ -335,7 +335,7 @@ bool BMC::visit(WhileStatement const& _node)
 
 			smtutil::Expression continues(false);
 			smtutil::Expression brokeInCurrentIteration(false);
-			tie(continues, brokeInCurrentIteration) =
+			auto [continues, brokeInCurrentIteration] =
 				mergeVariablesFromLoopScopes();
 
 			// accept loop condition after continue statement
@@ -343,7 +343,7 @@ bool BMC::visit(WhileStatement const& _node)
 			_node.condition().accept(*this);
 
 			// handles breaks in previous iterations
-			// breaks in current iterations are handled when traversing loop scopes
+			// breaks in current iterations are handled when traversing loop checkpoints
 			mergeVariables(
 				broke || !loopCondition,
 				indicesBefore,
@@ -360,14 +360,14 @@ bool BMC::visit(WhileStatement const& _node)
 				indicesNoBreak,
 				copyVariableIndices()
 			);
-			loopScopes.pop();
+			m_loopCheckpoints.pop();
 		}
 	}
 	else
 	{
 		for (unsigned int i = 0; i < bmcLoopIterations; ++i)
 		{
-			loopScopes.emplace();
+			m_loopCheckpoints.emplace();
 
 			auto indicesBefore = copyVariableIndices();
 			_node.condition().accept(*this);
@@ -379,17 +379,17 @@ bool BMC::visit(WhileStatement const& _node)
 
 			smtutil::Expression continues(false);
 			smtutil::Expression brokeInCurrentIteration(false);
-			tie(continues, brokeInCurrentIteration) =
+			auto [continues, brokeInCurrentIteration] =
 				mergeVariablesFromLoopScopes();
 
 			// handles breaks in previous iterations
-			// breaks in current iterations are handled when traversing loop scopes
+			// breaks in current iterations are handled when traversing loop checkpoints
 			mergeVariables(
 				broke || !loopCondition,
 				indicesBefore,
 				copyVariableIndices()
 			);
-			loopScopes.pop();
+			m_loopCheckpoints.pop();
 			broke = broke || brokeInCurrentIteration;
 		}
 	}
@@ -441,7 +441,7 @@ bool BMC::visit(ForStatement const& _node)
 			// values in loop condition might change during loop iteration
 			forCondition = expr(*_node.condition());
 		}
-		loopScopes.emplace();
+		m_loopCheckpoints.emplace();
 
 		auto indicesBefore = copyVariableIndices();
 		pushPathCondition(forCondition);
@@ -466,13 +466,13 @@ bool BMC::visit(ForStatement const& _node)
 		}
 
 		// handles breaks in previous iterations
-		// breaks in current iterations are handled when traversing loop scopes
+		// breaks in current iterations are handled when traversing loop checkpoints
 		mergeVariables(
 			broke || !forCondition,
 			indicesBefore,
 			copyVariableIndices()
 		);
-		loopScopes.pop();
+		m_loopCheckpoints.pop();
 		broke = broke || brokeInCurrentIteration;
 	}
 
@@ -484,7 +484,7 @@ std::tuple<smtutil::Expression, smtutil::Expression> BMC::mergeVariablesFromLoop
 {
 	smtutil::Expression continues(false);
 	smtutil::Expression brokeInCurrentIteration(false);
-	for (auto const& loopControl: loopScopes.top())
+	for (auto const& loopControl: m_loopCheckpoints.top())
 	{
 		// use SSAs associated with this break statement only if
 		// loop didn't break or continue earlier in the iteration
@@ -541,7 +541,7 @@ bool BMC::visit(Break const&)
 		currentPathConditions(),
 		copyVariableIndices()
 	};
-	loopScopes.top().emplace_back(control);
+	m_loopCheckpoints.top().emplace_back(control);
 	return false;
 }
 
@@ -552,7 +552,7 @@ bool BMC::visit(Continue const&)
 		currentPathConditions(),
 		copyVariableIndices()
 	};
-	loopScopes.top().emplace_back(control);
+	m_loopCheckpoints.top().emplace_back(control);
 	return false;
 }
 
@@ -1275,5 +1275,5 @@ void BMC::assignment(smt::SymbolicVariable& _symVar, smtutil::Expression const& 
 
 bool BMC::isInsideLoop() const
 {
-    return !loopScopes.empty();
+	return !m_loopCheckpoints.empty();
 }
