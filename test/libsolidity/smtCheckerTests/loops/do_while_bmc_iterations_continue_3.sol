@@ -1,7 +1,7 @@
 contract C {
 	function f() public pure {
 		uint x = 0;
-        uint y = 0;
+		uint y = 0;
 		do {
 			++x;
 			if (x > 0) {

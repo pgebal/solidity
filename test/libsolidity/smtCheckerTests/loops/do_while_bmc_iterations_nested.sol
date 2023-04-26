@@ -1,13 +1,13 @@
 contract C
 {
 	function f(uint z) public pure {
-	    uint x = 0;
-	    require(z == 0);
+		uint x = 0;
+		require(z == 0);
 		do {
 			uint y = 0;
 			do {
-			  ++z;
-			  ++y;
+				++z;
+				++y;
 			} while (y < 2);
 			++x;
 		} while (x < 2);

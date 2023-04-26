@@ -4,11 +4,11 @@ contract C
 		uint x;
 		while (x < 3) {
 			if (x > 1) {
-                x = 3;
+				x = 3;
 				break;
  			}
 			if (x >= 0) {
-                x = 2;
+				x = 2;
 				continue;
  			}
 		}

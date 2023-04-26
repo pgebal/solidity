@@ -1,6 +1,6 @@
 contract C {
 	function f() public pure {
-        uint x;
+		uint x;
 		while (true) {
 			++x;
 		}

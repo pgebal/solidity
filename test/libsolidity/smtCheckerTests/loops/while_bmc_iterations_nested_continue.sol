@@ -1,7 +1,7 @@
 contract C {
 	function f() public pure {
-	    uint x;
-	    uint i;
+		uint x;
+		uint i;
 		while (i < 3) {
 			++i;
 			uint j;

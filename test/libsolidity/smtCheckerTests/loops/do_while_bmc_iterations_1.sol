@@ -1,7 +1,7 @@
 contract C
 {
 	function f(uint x) public pure {
-	    require(x == 0);
+		require(x == 0);
 		do {
 			++x;
 		} while (x < 2);
