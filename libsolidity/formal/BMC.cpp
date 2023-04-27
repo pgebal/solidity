@@ -430,25 +430,23 @@ bool BMC::visit(ForStatement const& _node)
 
 		auto indicesBefore = copyVariableIndices();
 		pushPathCondition(forCondition);
-		_node.body().accept(*this);
-		if (_node.loopExpression())
-			_node.loopExpression()->accept(*this);
-		popPathCondition();
+		_node.body().accept(*this);	
 
 		auto [continues, brokeInCurrentIteration] =
 			mergeVariablesFromLoopCheckpoints();
 
-		// accept loop expression on continue statement
+		// accept loop expression if there was no break
 		if (_node.loopExpression())
 		{
-			auto indicesNoContinue = copyVariableIndices();
+			auto indicesBreak = copyVariableIndices();
 			_node.loopExpression()->accept(*this);
 			mergeVariables(
-				continues,
+				!brokeInCurrentIteration,
 				copyVariableIndices(),
-				indicesNoContinue
+				indicesBreak
 			);
 		}
+		popPathCondition();
 
 		// handles breaks in previous iterations
 		// breaks in current iterations are handled when traversing loop checkpoints
