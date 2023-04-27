@@ -191,10 +191,6 @@ private:
 	//@}
 
 	std::tuple<smtutil::Expression, smtutil::Expression> mergeVariablesFromLoopCheckpoints();
-	void acceptLoopConditionOnContinueStatement(
-		WhileStatement const& _node,
-		smtutil::Expression continues
-	);
 	bool isInsideLoop() const;
 
 	std::unique_ptr<smtutil::SolverInterface> m_interface;
