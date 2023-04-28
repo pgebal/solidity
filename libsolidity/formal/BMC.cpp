@@ -352,15 +352,16 @@ bool BMC::visit(WhileStatement const& _node)
 			m_loopCheckpoints.pop();
 		}
 	}
-	else
+	else {
+		smtutil::Expression loopConditionOnPreviousIteration(true);
 		for (unsigned int i = 0; i < bmcLoopIterations; ++i)
 		{
 			m_loopCheckpoints.emplace();
 			auto indicesBefore = copyVariableIndices();
 			_node.condition().accept(*this);
+			loopCondition = expr(_node.condition());
 
 			auto indicesAfterCondition = copyVariableIndices();
-			loopCondition = expr(_node.condition());
 
 			pushPathCondition(loopCondition);
 			_node.body().accept(*this);
@@ -369,21 +370,26 @@ bool BMC::visit(WhileStatement const& _node)
 			auto [continues, brokeInCurrentIteration] =
 				mergeVariablesFromLoopCheckpoints();
 
-			// handles breaks in previous iterations
-			// breaks in current iterations are handled when traversing loop checkpoints
+			// merges indices modified when accepting loop condition that does no longer hold
 			mergeVariables(
 				!loopCondition,
 				indicesAfterCondition,
 				copyVariableIndices()
 			);
+
+			// handles breaks in previous iterations
+			// breaks in current iterations are handled when traversing loop checkpoints
+			// handles case when the loop condition no longer holds but bmc loop iterations still unrolls the loop
 			mergeVariables(
-				broke,
+				broke || !loopConditionOnPreviousIteration,
 				indicesBefore,
 				copyVariableIndices()
 			);
 			m_loopCheckpoints.pop();
 			broke = broke || brokeInCurrentIteration;
+			loopConditionOnPreviousIteration = loopCondition;
 		}
+	}
 
 	m_loopExecutionHappened = true;
 	return false;
@@ -423,6 +429,7 @@ bool BMC::visit(ForStatement const& _node)
 
 	smtutil::Expression broke(false);
 	smtutil::Expression forCondition(true);
+	smtutil::Expression forConditionOnPreviousIteration(true);
 	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	for (unsigned int i = 0; i < bmcLoopIterations; ++i)
 	{
@@ -455,20 +462,24 @@ bool BMC::visit(ForStatement const& _node)
 		}
 		popPathCondition();
 
-		// handles breaks in previous iterations
-		// breaks in current iterations are handled when traversing loop checkpoints
+		// merges indices modified when accepting loop condition that does no longer hold
 		mergeVariables(
 			!forCondition,
 			indicesAfterCondition,
 			copyVariableIndices()
 		);
+
+		// handles breaks in previous iterations
+		// breaks in current iterations are handled when traversing loop checkpoints
+		// handles case when the loop condition no longer holds but bmc loop iterations still unrolls the loop
 		mergeVariables(
-			broke,
+			broke || !forConditionOnPreviousIteration,
 			indicesBefore,
 			copyVariableIndices()
 		);
 		m_loopCheckpoints.pop();
 		broke = broke || brokeInCurrentIteration;
+		forConditionOnPreviousIteration = forCondition;
 	}
 
 	m_loopExecutionHappened = true;
