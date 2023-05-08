@@ -370,7 +370,7 @@ bool BMC::visit(WhileStatement const& _node)
 			auto [continues, brokeInCurrentIteration] =
 				mergeVariablesFromLoopCheckpoints();
 
-			// merges indices modified when accepting loop condition that does no longer hold
+			// merges indices modified when accepting loop condition that no longer holds
 			mergeVariables(
 				!loopCondition,
 				indicesAfterCondition,
