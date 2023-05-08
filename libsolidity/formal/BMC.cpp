@@ -298,7 +298,7 @@ bool BMC::visit(Conditional const& _op)
 // Unrolls while or do-while loop
 bool BMC::visit(WhileStatement const& _node)
 {
-	auto indicesBefore = copyVariableIndices();
+	auto indicesBeforeLoopVisited = copyVariableIndices();
 
 	m_context.pushSolver();
 	// variables touched by loop might change their value
@@ -317,7 +317,7 @@ bool BMC::visit(WhileStatement const& _node)
 		);
 	m_context.popSolver();
 
-	resetVariableIndices(indicesBefore);
+	resetVariableIndices(indicesBeforeLoopVisited);
 
 	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	smtutil::Expression broke(false);
@@ -337,9 +337,9 @@ bool BMC::visit(WhileStatement const& _node)
 			auto indicesBreak = copyVariableIndices();
 			_node.condition().accept(*this);
 			mergeVariables(
-				!brokeInCurrentIteration,
-				copyVariableIndices(),
-				indicesBreak
+				brokeInCurrentIteration,
+				indicesBreak,
+				copyVariableIndices()
 			);
 
 			mergeVariables(

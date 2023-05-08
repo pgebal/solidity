@@ -1,23 +1,14 @@
 contract C {
-	function f() public pure {
-		uint x;
-		while (x < 3) {
+	function f(uint x) public pure {
+		require(x == 0);
+		while (++x < 2)
 			++x;
-			if (x > 0) {
- 				x = 2;
-				break;
-			}
-			if (x > 1) {
-				x = 3;
-				break;
-			}
-		}
-		assert(x == 2);
+		assert(x == 3);
 	}
 }
 // ====
 // SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 3
+// BMCLoopIterations: 2
 // ----
 // Info 6002: BMC: 2 verification condition(s) proved safe! Enable the model checker option "show proved safe" to see all of them.

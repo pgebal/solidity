@@ -1,5 +1,4 @@
-contract C
-{
+contract C {
 	function f(uint x) public pure {
 		require(x == 0);
 		uint i;

@@ -1,5 +1,4 @@
-contract C
-{
+contract C {
 	function f() public pure {
 		uint x = 0;
 		do {
