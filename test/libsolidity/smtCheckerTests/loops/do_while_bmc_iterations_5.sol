@@ -1,20 +1,22 @@
 contract C {
-	function f(uint x) public pure {
+    uint x;
+
+    function condition() private returns(bool) {
+		++x;
+		return x < 3;
+	}
+
+	function f() public {
 		require(x == 0);
-		uint y;
 		do {
-			++y;
-			if (y == 2)
-			    x = 3;
-		} while (y < 3);
-		// verification reports a warning because loop unwinding depth is 1
+		} while (condition());
 		assert(x == 3);
 	}
 }
 // ====
 // SMTEngine: bmc
 // SMTSolvers: z3
-// BMCLoopIterations: 1
+// BMCLoopIterations: 5
 // ----
-// Warning 4661: (211-225): BMC: Assertion violation happens here.
-// Info 6002: BMC: 1 verification condition(s) proved safe! Enable the model checker option "show proved safe" to see all of them.
+// Warning 2661: (77-80): BMC: Overflow (resulting value larger than 2**256 - 1) happens here.
+// Info 6002: BMC: 2 verification condition(s) proved safe! Enable the model checker option "show proved safe" to see all of them.

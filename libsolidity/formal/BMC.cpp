@@ -337,9 +337,9 @@ bool BMC::visit(WhileStatement const& _node)
 			auto indicesBreak = copyVariableIndices();
 			_node.condition().accept(*this);
 			mergeVariables(
-				brokeInCurrentIteration,
-				indicesBreak,
-				copyVariableIndices()
+				!brokeInCurrentIteration,
+				copyVariableIndices(),
+				indicesBreak
 			);
 
 			mergeVariables(
@@ -390,7 +390,8 @@ bool BMC::visit(WhileStatement const& _node)
 			loopConditionOnPreviousIteration = loopCondition;
 		}
 	}
-
+	if (bmcLoopIterations > 0)
+		m_context.addAssertion(not(loopCondition));
 	m_loopExecutionHappened = true;
 	return false;
 }
@@ -481,7 +482,8 @@ bool BMC::visit(ForStatement const& _node)
 		broke = broke || brokeInCurrentIteration;
 		forConditionOnPreviousIteration = forCondition;
 	}
-
+	if (bmcLoopIterations > 0)
+		m_context.addAssertion(not(forCondition));
 	m_loopExecutionHappened = true;
 	return false;
 }
@@ -1107,8 +1109,9 @@ void BMC::checkCondition(
 	string extraComment = SMTEncoder::extraComment();
 	if (m_loopExecutionHappened)
 		extraComment +=
-			"\nNote that some information is erased after the execution of loops.\n"
-			"You can re-introduce information using require().";
+			"\nNote that false negatives are possible when unrolling loops.\n"
+			"This is due to the possibility that bmc loop iteration setting is"
+			" less than actual number of iterations needed to complete a loop";
 	if (m_externalFunctionCallHappened)
 		extraComment +=
 			"\nNote that external function calls are not inlined,"
