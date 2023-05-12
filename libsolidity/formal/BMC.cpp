@@ -298,27 +298,6 @@ bool BMC::visit(Conditional const& _op)
 // Unrolls while or do-while loop
 bool BMC::visit(WhileStatement const& _node)
 {
-	auto indicesBeforeLoopVisited = copyVariableIndices();
-
-	m_context.pushSolver();
-	// variables touched by loop might change their value
-	// assume their values are not constant
-	m_context.resetVariables(touchedVariables(_node));
-
-	_node.condition().accept(*this);
-
-	// do not apply condition target on expressions
-	// that value might be changed by other loops
-	if (isRootFunction() && !isInsideLoop())
-		addVerificationTarget(
-			VerificationTargetType::ConstantCondition,
-			expr(_node.condition()),
-			&_node.condition()
-		);
-	m_context.popSolver();
-
-	resetVariableIndices(indicesBeforeLoopVisited);
-
 	unsigned int bmcLoopIterations = m_settings.bmcLoopIterations.value_or(1);
 	smtutil::Expression broke(false);
 	smtutil::Expression loopCondition(true);
@@ -401,32 +380,6 @@ bool BMC::visit(ForStatement const& _node)
 {
 	if (_node.initializationExpression())
 		_node.initializationExpression()->accept(*this);
-	auto indicesBefore = copyVariableIndices();
-
-	auto touchedVars = touchedVariables(_node.body());
-	if (_node.condition())
-		touchedVars += touchedVariables(*_node.condition());
-	if (_node.loopExpression())
-		touchedVars += touchedVariables(*_node.loopExpression());
-
-	m_context.pushSolver();
-	// variables touched by loop might change their value
-	// assume values are not constant
-	m_context.resetVariables(touchedVars);
-	if (_node.condition())
-	{
-		_node.condition()->accept(*this);
-		// do not apply condition target on expressions
-		// which value might be changed by other loops
-		if (isRootFunction() && !isInsideLoop())
-			addVerificationTarget(
-				VerificationTargetType::ConstantCondition,
-				expr(*_node.condition()),
-				_node.condition()
-			);
-	}
-	m_context.popSolver();
-	resetVariableIndices(indicesBefore);
 
 	smtutil::Expression broke(false);
 	smtutil::Expression forCondition(true);
