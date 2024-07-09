@@ -803,6 +803,18 @@ void SMTEncoder::visitBytesConcat(FunctionCall const& _funCall)
 		return;
 	}
 
+	if (false) {
+		// all the args are of type literal
+		// define expr as arrayLiteral
+		auto var = std::make_shared<smt::SymbolicArrayVariable>(_funCall, _funCall, _uniqueName, m_context);
+		m_context.createExpression(_funCall, var);
+
+		addArrayLiteralAssertions(
+			*var,
+			applyMap(_literal.value(), [](unsigned char c) { return smtutil::Expression{size_t(c)}; })
+		);
+	}
+
 	auto const& [name, inTypes, outType] = state().bytesConcatFunctionTypes(&_funCall);
 	solAssert(inTypes.size() == args.size(), "");
 
