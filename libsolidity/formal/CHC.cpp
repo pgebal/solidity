@@ -121,6 +121,15 @@ void CHC::analyze(SourceUnit const& _source)
 			"CHC analysis was not possible. No Horn solver was available."
 			" None of the installed solvers was enabled."
 		);
+	if (m_satisfiedTargetsAmt && m_arrayAssignmentHappened)
+		m_errorReporter.warning(
+			3084_error,
+			{},
+			"CHC: "
+			"Note that array/mapping aliasing is not supported,"
+			" any may produce spurious results (false positives).\n"
+			"You can re-introduce information using require()."
+		);
 }
 
 std::vector<std::string> CHC::unhandledQueries() const
@@ -2180,6 +2189,7 @@ void CHC::checkAndReportTarget(
 	else if (result == CheckResult::SATISFIABLE)
 	{
 		solAssert(!_satMsg.empty(), "");
+		++m_satisfiedTargetsAmt;
 		auto cex = generateCounterexample(model, error().name);
 		if (cex)
 			m_unsafeTargets[_target.errorNode][_target.type] = {

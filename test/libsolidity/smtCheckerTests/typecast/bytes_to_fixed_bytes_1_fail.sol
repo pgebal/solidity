@@ -23,3 +23,4 @@ contract C {
 // Warning 6328: (356-403): CHC: Assertion violation happens here.
 // Warning 6328: (532-595): CHC: Assertion violation happens here.
 // Warning 6328: (740-819): CHC: Assertion violation happens here.
+// Warning 3084: CHC: Note that array/mapping aliasing is not supported, any may produce spurious results (false positives).\nYou can re-introduce information using require().

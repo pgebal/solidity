@@ -2102,6 +2102,7 @@ void SMTEncoder::assignment(
 		"Tuple assignments should be handled by tupleAssignment."
 	);
 
+
 	Expression const* left = cleanExpression(_left);
 
 	if (!isSupportedType(*_type))
@@ -2286,7 +2287,7 @@ void SMTEncoder::assignment(VariableDeclaration const& _variable, Expression con
 void SMTEncoder::assignment(VariableDeclaration const& _variable, smtutil::Expression const& _value)
 {
 	Type const* type = _variable.type();
-	if (type->category() == Type::Category::Mapping)
+	if (type->category() == Type::Category::Mapping || type->category() == Type::Category::Array)
 		arrayAssignment();
 	assignment(*m_context.variable(_variable), _value);
 }
@@ -2873,18 +2874,6 @@ bool SMTEncoder::isExternalCallToThis(Expression const* _expr) {
 		identifier->annotation().referencedDeclaration &&
 		dynamic_cast<MagicVariableDeclaration const*>(identifier->annotation().referencedDeclaration)
 	;
-}
-
-std::string SMTEncoder::extraComment()
-{
-	std::string extra;
-	if (m_arrayAssignmentHappened)
-		extra +=
-			"\nNote that array aliasing is not supported,"
-			" therefore all mapping information is erased after"
-			" a mapping local variable/parameter is assigned.\n"
-			"You can re-introduce information using require().";
-	return extra;
 }
 
 FunctionDefinition const* SMTEncoder::functionCallToDefinition(

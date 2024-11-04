@@ -110,6 +110,16 @@ void BMC::analyze(SourceUnit const& _source, std::map<ASTNode const*, std::set<V
 			" Consider increasing the timeout per query."
 		);
 
+	if (m_satisfiedTargetsAmt && m_arrayAssignmentHappened)
+		m_errorReporter.warning(
+			5533_error,
+			{},
+			"BMC: "
+			"Note that array/mapping aliasing is not supported,"
+			" any may produce spurious results (false positives).\n"
+			"You can re-introduce information using require()."
+		);
+
 	if (!m_settings.showProvedSafe && !m_safeTargets.empty())
 	{
 		std::size_t provedSafeNum = 0;
@@ -1126,7 +1136,7 @@ void BMC::checkCondition(
 	std::vector<std::string> values;
 	tie(result, values) = checkSatisfiableAndGenerateModel(expressionsToEvaluate);
 
-	std::string extraComment = SMTEncoder::extraComment();
+	std::string extraComment = "";
 	if (m_loopExecutionHappened)
 		extraComment +=
 			"False negatives are possible when unrolling loops.\n"
@@ -1147,6 +1157,7 @@ void BMC::checkCondition(
 	case smtutil::CheckResult::SATISFIABLE:
 	{
 		solAssert(!_callStack.empty(), "");
+		++m_satisfiedTargetsAmt;
 		std::ostringstream message;
 		message << "BMC: " << targetDescription(_target) << " happens here.";
 

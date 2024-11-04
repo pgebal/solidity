@@ -222,6 +222,9 @@ private:
 	/// Number of verification conditions that could not be proved.
 	size_t m_unprovedAmt = 0;
 
+	/// Number of satisfied verification targets.
+	size_t m_satisfiedTargetsAmt = 0;
+
 	enum class LoopControlKind
 	{
 		Continue,

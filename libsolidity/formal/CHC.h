@@ -483,6 +483,9 @@ private:
 
 	std::map<util::h256, std::string> const& m_smtlib2Responses;
 	ReadCallback::Callback const& m_smtCallback;
+
+	/// Number of satisfied verification targets.
+	size_t m_satisfiedTargetsAmt = 0;
 };
 
 }
